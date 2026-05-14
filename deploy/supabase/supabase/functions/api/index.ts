@@ -15,9 +15,10 @@ const defaultData: any = {
   modules: [],
   lessons: [],
   ratings: [],
+  progress: [],
   suggestions: [],
   settings: { slides: [] },
-  _seq: { users: 0, courses: 0, modules: 0, lessons: 0, ratings: 0, suggestions: 0 }
+  _seq: { users: 0, courses: 0, modules: 0, lessons: 0, ratings: 0, progress: 0, suggestions: 0 }
 };
 
 class HttpError extends Error {
@@ -175,9 +176,15 @@ function lessonRating(db: any, lessonId: number, userId: number) {
   return db.ratings.find((r: any) => r.lesson_id === Number(lessonId) && r.user_id === Number(userId)) || null;
 }
 
+function lessonProgress(db: any, lessonId: number, userId: number) {
+  return db.progress.find((p: any) => p.lesson_id === Number(lessonId) && p.user_id === Number(userId)) || null;
+}
+
 function withStats(db: any, lesson: any, userId: number) {
   const stats = ratingStats(db, lesson.id);
-  return { ...lesson, rating_avg: stats.avg, rating_count: stats.count, my_rating: lessonRating(db, lesson.id, userId)?.rating || 0 };
+  const rating = lessonRating(db, lesson.id, userId);
+  const progress = lessonProgress(db, lesson.id, userId);
+  return { ...lesson, rating_avg: stats.avg, rating_count: stats.count, my_rating: rating?.rating || 0, my_comment: rating?.comment || '', watched: !!progress?.watched };
 }
 
 function courseTree(db: any, course: any, user: any, adminView = false) {
@@ -233,13 +240,33 @@ Deno.serve(async (req) => {
       const rating = Number(b.rating);
       if (rating < 1 || rating > 5) throw new HttpError(400, 'nota inválida');
       let row = db.ratings.find((r: any) => r.lesson_id === Number(b.lesson_id) && r.user_id === Number(user.id));
-      if (row) Object.assign(row, { rating, created_at: new Date().toISOString() });
+      if (row) Object.assign(row, { rating, comment: b.comment || '', created_at: new Date().toISOString() });
       else {
-        row = { id: nextId(db, 'ratings'), lesson_id: Number(b.lesson_id), user_id: Number(user.id), rating, created_at: new Date().toISOString() };
+        row = { id: nextId(db, 'ratings'), lesson_id: Number(b.lesson_id), user_id: Number(user.id), rating, comment: b.comment || '', created_at: new Date().toISOString() };
         db.ratings.push(row);
       }
       await saveDB(db);
       return json(req, row);
+    }
+
+    if (method === 'POST' && path === '/progress/watch') {
+      const b = await body(req);
+      const rating = Number(b.rating);
+      if (rating < 1 || rating > 5) throw new HttpError(400, 'avalie antes de concluir');
+      let rateRow = db.ratings.find((r: any) => r.lesson_id === Number(b.lesson_id) && r.user_id === Number(user.id));
+      if (rateRow) Object.assign(rateRow, { rating, comment: b.comment || '', created_at: new Date().toISOString() });
+      else {
+        rateRow = { id: nextId(db, 'ratings'), lesson_id: Number(b.lesson_id), user_id: Number(user.id), rating, comment: b.comment || '', created_at: new Date().toISOString() };
+        db.ratings.push(rateRow);
+      }
+      let progress = db.progress.find((p: any) => p.lesson_id === Number(b.lesson_id) && p.user_id === Number(user.id));
+      if (progress) Object.assign(progress, { watched: true, updated_at: new Date().toISOString() });
+      else {
+        progress = { id: nextId(db, 'progress'), lesson_id: Number(b.lesson_id), user_id: Number(user.id), watched: true, updated_at: new Date().toISOString() };
+        db.progress.push(progress);
+      }
+      await saveDB(db);
+      return json(req, progress);
     }
 
     if (method === 'POST' && path === '/suggestions') {
@@ -393,6 +420,20 @@ Deno.serve(async (req) => {
         lesson_title: db.lessons.find((l: any) => l.id === s.lesson_id)?.title || ''
       }));
       return json(req, rows);
+    }
+
+    if (method === 'GET' && path === '/feedback') {
+      const suggestions = [...db.suggestions].sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map((s: any) => ({
+        ...s,
+        user_name: db.users.find((u: any) => u.id === s.user_id)?.name || '?',
+        lesson_title: db.lessons.find((l: any) => l.id === s.lesson_id)?.title || ''
+      }));
+      const ratings = [...db.ratings].sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map((r: any) => ({
+        ...r,
+        user_name: db.users.find((u: any) => u.id === r.user_id)?.name || '?',
+        lesson_title: db.lessons.find((l: any) => l.id === r.lesson_id)?.title || ''
+      }));
+      return json(req, { suggestions, ratings });
     }
     m = path.match(/^\/suggestions\/(\d+)$/);
     if (m && method === 'PUT') {

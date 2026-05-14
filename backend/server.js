@@ -44,7 +44,9 @@ function admin(req, res, next) {
 
 function withStats(lesson, userId) {
   const stats = db.ratingStats(lesson.id);
-  return { ...lesson, rating_avg: stats.avg, rating_count: stats.count, my_rating: db.lessonRating(lesson.id, userId)?.rating || 0 };
+  const progress = db.lessonProgress(lesson.id, userId);
+  const rating = db.lessonRating(lesson.id, userId);
+  return { ...lesson, rating_avg: stats.avg, rating_count: stats.count, my_rating: rating?.rating || 0, my_comment: rating?.comment || '', watched: !!progress?.watched };
 }
 
 function courseTree(course, userId, adminView = false) {
@@ -83,7 +85,15 @@ app.get('/api/courses/:id', auth, (req, res) => {
 app.post('/api/ratings', auth, (req, res) => {
   const rating = Number(req.body.rating);
   if (rating < 1 || rating > 5) return res.status(400).json({ error: 'nota inválida' });
-  res.json(db.rateLesson({ lesson_id: req.body.lesson_id, user_id: req.auth.id, rating }));
+  res.json(db.rateLesson({ lesson_id: req.body.lesson_id, user_id: req.auth.id, rating, comment: req.body.comment || '' }));
+});
+
+app.post('/api/progress/watch', auth, (req, res) => {
+  try {
+    res.json(db.markWatched({ lesson_id: req.body.lesson_id, user_id: req.auth.id, rating: req.body.rating, comment: req.body.comment || '' }));
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
 });
 
 app.post('/api/suggestions', auth, (req, res) => {
@@ -123,6 +133,7 @@ app.put('/api/lessons/:id', admin, (req, res) => res.json(db.updateLesson(req.pa
 app.delete('/api/lessons/:id', admin, (req, res) => { db.deleteLesson(req.params.id); res.json({ ok: true }); });
 app.get('/api/suggestions', admin, (req, res) => res.json(db.listSuggestions()));
 app.put('/api/suggestions/:id', admin, (req, res) => res.json(db.updateSuggestion(req.params.id, req.body)));
+app.get('/api/feedback', admin, (req, res) => res.json(db.listFeedback()));
 app.get('/api/settings', auth, (req, res) => res.json(db.getSettings()));
 app.put('/api/settings', admin, (req, res) => res.json(db.updateSettings(req.body)));
 

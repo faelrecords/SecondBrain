@@ -367,6 +367,14 @@ nav button.active {
 .back-btn {
   width: fit-content;
 }
+.continue-row {
+  display: flex;
+  justify-content: center;
+  margin-top: -10px;
+}
+.continue-btn {
+  min-width: 260px;
+}
 .course-list, .lesson-list, .player-panel, .admin-card, .table {
   background: var(--panel);
   border: 1px solid var(--line);
@@ -525,7 +533,24 @@ nav button.active {
   gap: 8px;
 }
 .image-field input[type="file"] {
-  padding: 10px;
+  display: none;
+}
+.file-picker {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  padding: 12px 15px;
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), .08);
+  cursor: pointer;
+  box-shadow: 0 0 22px rgba(var(--accent-rgb), .08);
+}
+.file-picker:hover {
+  background: rgba(var(--accent-rgb), .14);
 }
 .image-field img {
   width: 100%;
@@ -556,6 +581,17 @@ nav button.active {
   position: absolute;
   right: 10px;
   top: 10px;
+}
+.status-pill {
+  width: fit-content;
+  height: fit-content;
+  padding: 7px 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), .08);
+  font-size: 12px;
+  font-weight: 800;
 }
 .modal-bg {
   position: fixed;

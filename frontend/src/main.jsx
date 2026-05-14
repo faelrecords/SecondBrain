@@ -64,7 +64,7 @@ function Login({ onLogin }) {
 
 function Shell({ children, tab, setTab, user }) {
   const nav = user?.is_admin
-    ? [['learn', BookOpen, 'Aulas'], ['admin', LayoutDashboard, 'Cursos'], ['users', Users, 'Usuários'], ['suggestions', Lightbulb, 'Sugestões'], ['settings', Image, 'Configurações']]
+    ? [['learn', BookOpen, 'Aulas'], ['admin', LayoutDashboard, 'Cursos'], ['users', Users, 'Usuários'], ['feedback', Star, 'Avaliações'], ['suggestions', Lightbulb, 'Sugestões'], ['settings', Image, 'Configurações']]
     : [['learn', BookOpen, 'Aulas']];
   return <div className="app">
     <aside>
@@ -82,7 +82,7 @@ function Shell({ children, tab, setTab, user }) {
 
 function Stars({ value, onChange }) {
   return <div className="stars">{[1, 2, 3, 4, 5].map(n =>
-    <button key={n} className={n <= value ? 'on' : ''} onClick={() => onChange(n)}><Star size={18} fill="currentColor" /></button>
+    <button type="button" key={n} className={n <= value ? 'on' : ''} onClick={() => onChange(n)}><Star size={18} fill="currentColor" /></button>
   )}</div>;
 }
 
@@ -98,6 +98,8 @@ function Learn({ courses, reload }) {
   const [lessonId, setLessonId] = useState(null);
   const lesson = lessons.find(l => l.id === lessonId) || lessons[0];
   const [suggest, setSuggest] = useState('');
+  const [ratingDraft, setRatingDraft] = useState(0);
+  const [reviewText, setReviewText] = useState('');
   useEffect(() => { api.get('/settings').then(setSettings).catch(() => {}); }, []);
   useEffect(() => {
     if (!settings.slides?.length) return;
@@ -107,7 +109,25 @@ function Learn({ courses, reload }) {
   useEffect(() => {
     if (moduleLessons[0]) setLessonId(moduleLessons[0].id);
   }, [moduleId]);
-  async function rate(n) { await api.post('/ratings', { lesson_id: lesson.id, rating: n }); reload(); }
+  useEffect(() => {
+    setRatingDraft(lesson?.my_rating || 0);
+    setReviewText(lesson?.my_comment || '');
+  }, [lesson?.id]);
+  function continueWhereStopped(targetCourse = courses[0]) {
+    const flat = targetCourse?.modules.flatMap(m => m.lessons.map(l => ({ ...l, module_id: m.id }))) || [];
+    const target = flat.find(l => !l.watched) || flat.at(-1);
+    if (!target) return;
+    setCourseId(targetCourse.id);
+    setModuleId(target.module_id);
+    setLessonId(target.id);
+  }
+  async function markWatched() {
+    await api.post('/progress/watch', { lesson_id: lesson.id, rating: ratingDraft, comment: reviewText });
+    await reload();
+    const idx = moduleLessons.findIndex(l => l.id === lesson.id);
+    const next = moduleLessons[idx + 1];
+    if (next) setLessonId(next.id);
+  }
   async function sendSuggestion() {
     await api.post('/suggestions', { lesson_id: lesson?.id, title: 'Sugestão de aula', message: suggest });
     setSuggest('');
@@ -115,6 +135,9 @@ function Learn({ courses, reload }) {
   if (!courses.length) return <Empty title="Nenhum curso" text="Admin precisa criar cursos." />;
   if (!course) return <div className="learn-page">
     <HeroSlider slides={settings.slides || []} slide={slide} setSlide={setSlide} />
+    <div className="continue-row">
+      <button className="primary continue-btn" onClick={() => continueWhereStopped(courses[0])}><Play size={17} />Continuar de onde parou</button>
+    </div>
     <header className="section-head"><div><h2>Cursos disponíveis</h2><p>Escolha curso para ver módulos.</p></div></header>
     <div className="poster-grid">
       {courses.map(c => <button key={c.id} className="poster-card" onClick={() => setCourseId(c.id)}>
@@ -125,7 +148,7 @@ function Learn({ courses, reload }) {
   </div>;
   if (!module) return <div className="learn-page">
     <button className="back-btn" onClick={() => setCourseId(null)}>Voltar</button>
-    <header className="section-head"><div><h2>{course.title}</h2><p>Módulos</p></div></header>
+    <header className="section-head"><div><h2>{course.title}</h2><p>Módulos</p></div><button className="primary slim" onClick={() => continueWhereStopped(course)}><Play size={16} />Continuar de onde parou</button></header>
     <div className="poster-grid">
       {course.modules.map(m => <button key={m.id} className="poster-card" onClick={() => setModuleId(m.id)}>
         <img src={m.cover_url || course.cover_url || 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=900&q=80'} />
@@ -147,7 +170,13 @@ function Learn({ courses, reload }) {
           <p className="summary">{lesson.summary || 'Sem resumo.'}</p>
           <div className="rating-box">
             <div><b>Avaliar aula</b><small>{lesson.rating_count ? `${lesson.rating_avg.toFixed(1)} média / ${lesson.rating_count} votos` : 'sem avaliações'}</small></div>
-            <Stars value={lesson.my_rating || 0} onChange={rate} />
+            <Stars value={ratingDraft} onChange={setRatingDraft} />
+          </div>
+          <div className="suggest-box">
+            <textarea placeholder="Avaliação em texto opcional..." value={reviewText} onChange={e => setReviewText(e.target.value)} />
+            <button className="primary" disabled={!ratingDraft || lesson.watched} onClick={markWatched}>
+              {lesson.watched ? 'Aula assistida' : 'Marcar como assistido'}
+            </button>
           </div>
           <div className="suggest-box">
             <textarea placeholder="Sugerir nova aula, ajuste ou material..." value={suggest} onChange={e => setSuggest(e.target.value)} />
@@ -159,7 +188,7 @@ function Learn({ courses, reload }) {
         <div className="module">
           <h3>Aulas</h3>
           {moduleLessons.map(l => <button key={l.id} className={lesson?.id === l.id ? 'lesson active' : 'lesson'} onClick={() => setLessonId(l.id)}>
-            <Play size={15} /><span>{l.title}</span><small>{l.duration}</small>
+            <Play size={15} /><span>{l.title}</span><small>{l.watched ? 'feito' : l.duration}</small>
           </button>)}
         </div>
       </div>
@@ -256,6 +285,22 @@ function SuggestionsAdmin() {
   </div>;
 }
 
+function FeedbackAdmin() {
+  const [data, setData] = useState({ suggestions: [], ratings: [] });
+  useEffect(() => { api.get('/feedback').then(setData); }, []);
+  return <div>
+    <header className="topbar"><div><h1>Avaliações</h1><p>Avaliações, textos e sugestões em um lugar.</p></div></header>
+    <div className="admin-stack">
+      {data.ratings.map(r => <div className="admin-card suggestion" key={`r-${r.id}`}>
+        <div><small>{r.user_name} · {r.lesson_title}</small><h2>{'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</h2><p>{r.comment || 'Sem texto.'}</p></div>
+      </div>)}
+      {data.suggestions.map(s => <div className="admin-card suggestion" key={`s-${s.id}`}>
+        <div><small>{s.user_name} · {s.lesson_title || 'geral'}</small><h2>{s.title}</h2><p>{s.message}</p></div><span className="status-pill">{s.status}</span>
+      </div>)}
+    </div>
+  </div>;
+}
+
 function SettingsAdmin() {
   const [settings, setSettings] = useState({ slides: [] });
   useEffect(() => { api.get('/settings').then(setSettings); }, []);
@@ -296,7 +341,11 @@ function fileToDataUrl(file, cb) {
 function ImageField({ label, value, onChange }) {
   return <div className="image-field">
     <label>{label}</label>
-    <input type="file" accept="image/*" onChange={e => e.target.files?.[0] && fileToDataUrl(e.target.files[0], onChange)} />
+    <label className="file-picker">
+      <Image size={17} />
+      <span>Selecionar imagem</span>
+      <input type="file" accept="image/*" onChange={e => e.target.files?.[0] && fileToDataUrl(e.target.files[0], onChange)} />
+    </label>
     <input placeholder="ou cole URL da imagem" value={value || ''} onChange={e => onChange(e.target.value)} />
     {value && <img src={value} />}
   </div>;
@@ -316,6 +365,7 @@ function App() {
     {tab === 'learn' && <Learn courses={courses} reload={load} />}
     {tab === 'admin' && <AdminCourses courses={courses} reload={load} />}
     {tab === 'users' && <UsersAdmin />}
+    {tab === 'feedback' && <FeedbackAdmin />}
     {tab === 'suggestions' && <SuggestionsAdmin />}
     {tab === 'settings' && <SettingsAdmin />}
   </Shell>;

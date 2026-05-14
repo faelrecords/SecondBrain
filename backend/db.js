@@ -11,10 +11,11 @@ const seedData = {
   lessons: [],
   ratings: [],
   suggestions: [],
+  progress: [],
   settings: {
     slides: []
   },
-  _seq: { users: 0, courses: 0, modules: 0, lessons: 0, ratings: 0, suggestions: 0 }
+  _seq: { users: 0, courses: 0, modules: 0, lessons: 0, ratings: 0, suggestions: 0, progress: 0 }
 };
 
 function clone(v) {
@@ -175,20 +176,34 @@ export const db = {
     persist();
   },
 
-  rateLesson: ({ lesson_id, user_id, rating }) => {
+  rateLesson: ({ lesson_id, user_id, rating, comment = '' }) => {
     let row = data.ratings.find(r => r.lesson_id === Number(lesson_id) && r.user_id === Number(user_id));
-    if (row) Object.assign(row, { rating: Number(rating), created_at: new Date().toISOString() });
+    if (row) Object.assign(row, { rating: Number(rating), comment, created_at: new Date().toISOString() });
     else {
-      row = { id: nextId('ratings'), lesson_id: Number(lesson_id), user_id: Number(user_id), rating: Number(rating), created_at: new Date().toISOString() };
+      row = { id: nextId('ratings'), lesson_id: Number(lesson_id), user_id: Number(user_id), rating: Number(rating), comment, created_at: new Date().toISOString() };
       data.ratings.push(row);
     }
     persist();
     return row;
   },
   lessonRating: (lessonId, userId) => data.ratings.find(r => r.lesson_id === Number(lessonId) && r.user_id === Number(userId)) || null,
+  lessonProgress: (lessonId, userId) => data.progress.find(p => p.lesson_id === Number(lessonId) && p.user_id === Number(userId)) || null,
   ratingStats: lessonId => {
     const list = data.ratings.filter(r => r.lesson_id === Number(lessonId));
     return { count: list.length, avg: list.length ? list.reduce((sum, r) => sum + r.rating, 0) / list.length : null };
+  },
+  markWatched: ({ lesson_id, user_id, rating, comment }) => {
+    const ratingNumber = Number(rating);
+    if (ratingNumber < 1 || ratingNumber > 5) throw new Error('nota inválida');
+    db.rateLesson({ lesson_id, user_id, rating: ratingNumber, comment: comment || '' });
+    let row = data.progress.find(p => p.lesson_id === Number(lesson_id) && p.user_id === Number(user_id));
+    if (row) Object.assign(row, { watched: true, updated_at: new Date().toISOString() });
+    else {
+      row = { id: nextId('progress'), lesson_id: Number(lesson_id), user_id: Number(user_id), watched: true, updated_at: new Date().toISOString() };
+      data.progress.push(row);
+    }
+    persist();
+    return row;
   },
   createSuggestion: input => {
     const row = {
@@ -214,6 +229,16 @@ export const db = {
     if (row) { Object.assign(row, patch); persist(); }
     return row;
   },
+  listFeedback: () => ({
+    suggestions: db.listSuggestions(),
+    ratings: [...data.ratings]
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .map(r => ({
+        ...r,
+        user_name: db.findUser(r.user_id)?.name || '?',
+        lesson_title: db.findLesson(r.lesson_id)?.title || ''
+      }))
+  }),
   getSettings: () => data.settings || { slides: [] },
   updateSettings: patch => {
     data.settings = { ...(data.settings || {}), ...patch };
