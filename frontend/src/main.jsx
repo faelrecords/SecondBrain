@@ -65,7 +65,7 @@ function Login({ onLogin }) {
 function Shell({ children, tab, setTab, user }) {
   const nav = user?.is_admin
     ? [['learn', BookOpen, 'Aulas'], ['admin', LayoutDashboard, 'Cursos'], ['users', Users, 'Usuários'], ['feedback', Star, 'Avaliações'], ['suggestions', Lightbulb, 'Sugestões'], ['settings', Image, 'Configurações']]
-    : [['learn', BookOpen, 'Aulas']];
+    : [['learn', BookOpen, 'Aulas'], ['my-suggestions', Lightbulb, 'Sugestões']];
   return <div className="app">
     <aside>
       <div className="brand"><GraduationCap /><span>SecondBrain</span></div>
@@ -284,7 +284,31 @@ function SuggestionsAdmin() {
   async function load() { setItems(await api.get('/suggestions')); }
   useEffect(() => { load(); }, []);
   return <div><header className="topbar"><div><h1>Sugestões</h1><p>Pedidos enviados por usuários.</p></div></header>
-    <div className="admin-stack">{items.map(s => <div className="admin-card suggestion" key={s.id}><div><small>{s.user_name} · {s.lesson_title || 'geral'}</small><h2>{s.title}</h2><p>{s.message}</p></div><select value={s.status} onChange={async e => { await api.put(`/suggestions/${s.id}`, { status: e.target.value }); load(); }}><option value="open">aberta</option><option value="planned">planejada</option><option value="done">feita</option><option value="rejected">recusada</option></select></div>)}</div>
+    <div className="admin-stack">{items.map(s => <div className="admin-card suggestion" key={s.id}><div><small>{s.user_name} · {s.lesson_title || 'geral'}</small><h2>{s.title}</h2><p>{s.message}</p></div><select value={s.status} onChange={async e => { await api.put(`/suggestions/${s.id}`, { status: e.target.value }); load(); }}><option value="open">em análise</option><option value="planned">implementando</option><option value="done">implementada</option><option value="rejected">rejeitada</option></select></div>)}</div>
+  </div>;
+}
+
+function UserSuggestions() {
+  const [items, setItems] = useState([]);
+  const [form, setForm] = useState({ title: '', message: '' });
+  async function load() { setItems(await api.get('/me/suggestions')); }
+  useEffect(() => { load(); }, []);
+  async function send() {
+    await api.post('/suggestions', { title: form.title || 'Sugestão', message: form.message });
+    setForm({ title: '', message: '' });
+    load();
+  }
+  const label = { open: 'em análise', planned: 'implementando', done: 'implementada', rejected: 'rejeitada' };
+  return <div>
+    <header className="topbar"><div><h1>Sugestões</h1><p>Envie ideias e acompanhe status.</p></div></header>
+    <div className="admin-card suggestion-form">
+      <Field label="Título" value={form.title} onChange={v => setForm({ ...form, title: v })} />
+      <Area label="Sugestão" value={form.message} onChange={v => setForm({ ...form, message: v })} />
+      <button className="primary" disabled={!form.message.trim()} onClick={send}><Lightbulb size={16} />Enviar sugestão</button>
+    </div>
+    <div className="admin-stack" style={{ marginTop: 16 }}>
+      {items.map(s => <div className="admin-card suggestion" key={s.id}><div><small>{s.lesson_title || 'geral'}</small><h2>{s.title}</h2><p>{s.message}</p></div><span className="status-pill">{label[s.status] || s.status}</span></div>)}
+    </div>
   </div>;
 }
 
@@ -366,6 +390,7 @@ function App() {
   if (!user) return <Login onLogin={() => setUser(profile())} />;
   return <Shell tab={tab} setTab={setTab} user={user}>
     {tab === 'learn' && <Learn courses={courses} reload={load} />}
+    {tab === 'my-suggestions' && <UserSuggestions />}
     {tab === 'admin' && <AdminCourses courses={courses} reload={load} />}
     {tab === 'users' && <UsersAdmin />}
     {tab === 'feedback' && <FeedbackAdmin />}

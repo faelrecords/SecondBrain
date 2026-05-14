@@ -286,6 +286,14 @@ Deno.serve(async (req) => {
       return json(req, row);
     }
 
+    if (method === 'GET' && path === '/me/suggestions') {
+      const rows = [...db.suggestions]
+        .filter((s: any) => s.user_id === Number(user.id))
+        .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .map((s: any) => ({ ...s, lesson_title: db.lessons.find((l: any) => l.id === s.lesson_id)?.title || '' }));
+      return json(req, rows);
+    }
+
     adminOnly(user);
 
     if (method === 'PUT' && path === '/settings') {

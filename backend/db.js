@@ -224,6 +224,13 @@ export const db = {
       user_name: db.findUser(s.user_id)?.name || '?',
       lesson_title: db.findLesson(s.lesson_id)?.title || ''
     })),
+  listUserSuggestions: userId => data.suggestions
+    .filter(s => s.user_id === Number(userId))
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    .map(s => ({
+      ...s,
+      lesson_title: db.findLesson(s.lesson_id)?.title || ''
+    })),
   updateSuggestion: (id, patch) => {
     const row = data.suggestions.find(s => s.id === Number(id));
     if (row) { Object.assign(row, patch); persist(); }

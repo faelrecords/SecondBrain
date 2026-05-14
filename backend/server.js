@@ -105,6 +105,7 @@ app.post('/api/suggestions', auth, (req, res) => {
     message: String(req.body.message).trim()
   }));
 });
+app.get('/api/me/suggestions', auth, (req, res) => res.json(db.listUserSuggestions(req.auth.id)));
 
 app.get('/api/users', admin, (req, res) => res.json(db.listUsers()));
 app.post('/api/users', admin, (req, res) => {
