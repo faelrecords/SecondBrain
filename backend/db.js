@@ -11,6 +11,9 @@ const seedData = {
   lessons: [],
   ratings: [],
   suggestions: [],
+  settings: {
+    slides: []
+  },
   _seq: { users: 0, courses: 0, modules: 0, lessons: 0, ratings: 0, suggestions: 0 }
 };
 
@@ -125,6 +128,7 @@ export const db = {
       course_id: Number(input.course_id),
       title: input.title,
       description: input.description || '',
+      cover_url: input.cover_url || '',
       order: Number(input.order || data.modules.length + 1),
       created_at: new Date().toISOString()
     };
@@ -209,6 +213,12 @@ export const db = {
     const row = data.suggestions.find(s => s.id === Number(id));
     if (row) { Object.assign(row, patch); persist(); }
     return row;
+  },
+  getSettings: () => data.settings || { slides: [] },
+  updateSettings: patch => {
+    data.settings = { ...(data.settings || {}), ...patch };
+    persist();
+    return data.settings;
   }
 };
 

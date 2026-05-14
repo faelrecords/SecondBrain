@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BookOpen, Flame, GraduationCap, LayoutDashboard, Lightbulb, LogOut, Palette, Play, Plus, Save, Sparkles, Star, Trash2, Users, Waves } from 'lucide-react';
+import { BookOpen, GraduationCap, Image, LayoutDashboard, Lightbulb, LogOut, Play, Plus, Save, Star, Trash2, Users } from 'lucide-react';
 import './styles.css';
 
 const API = import.meta.env.VITE_API_URL || (
@@ -62,9 +62,9 @@ function Login({ onLogin }) {
   </main>;
 }
 
-function Shell({ children, tab, setTab, user, tone, setTone }) {
+function Shell({ children, tab, setTab, user }) {
   const nav = user?.is_admin
-    ? [['learn', BookOpen, 'Aulas'], ['admin', LayoutDashboard, 'Cursos'], ['users', Users, 'Usuários'], ['suggestions', Lightbulb, 'Sugestões']]
+    ? [['learn', BookOpen, 'Aulas'], ['admin', LayoutDashboard, 'Cursos'], ['users', Users, 'Usuários'], ['suggestions', Lightbulb, 'Sugestões'], ['settings', Image, 'Configurações']]
     : [['learn', BookOpen, 'Aulas']];
   return <div className="app">
     <aside>
@@ -73,10 +73,6 @@ function Shell({ children, tab, setTab, user, tone, setTone }) {
         <button key={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}><Icon size={18} />{label}</button>
       )}</nav>
       <div className="side-bottom">
-        <button className="tone-toggle" onClick={() => setTone(tone === 'aqua' ? 'red' : 'aqua')}>
-          {tone === 'aqua' ? <Waves size={18} /> : <Flame size={18} />}
-          {tone === 'aqua' ? 'Cyano' : 'Vermelho'}
-        </button>
         <button className="logout" onClick={logout}><LogOut size={18} />Sair</button>
       </div>
     </aside>
@@ -91,45 +87,56 @@ function Stars({ value, onChange }) {
 }
 
 function Learn({ courses, reload }) {
-  const [courseId, setCourseId] = useState(courses[0]?.id);
-  const course = courses.find(c => c.id === courseId) || courses[0];
+  const [settings, setSettings] = useState({ slides: [] });
+  const [slide, setSlide] = useState(0);
+  const [courseId, setCourseId] = useState(null);
+  const course = courses.find(c => c.id === courseId);
   const lessons = course?.modules.flatMap(m => m.lessons.map(l => ({ ...l, module_title: m.title }))) || [];
-  const [lessonId, setLessonId] = useState(lessons[0]?.id);
+  const [moduleId, setModuleId] = useState(null);
+  const module = course?.modules.find(m => m.id === moduleId);
+  const moduleLessons = module?.lessons || [];
+  const [lessonId, setLessonId] = useState(null);
   const lesson = lessons.find(l => l.id === lessonId) || lessons[0];
   const [suggest, setSuggest] = useState('');
-  useEffect(() => { if (!lessonId && lessons[0]) setLessonId(lessons[0].id); }, [courseId, courses]);
+  useEffect(() => { api.get('/settings').then(setSettings).catch(() => {}); }, []);
+  useEffect(() => {
+    if (!settings.slides?.length) return;
+    const timer = setInterval(() => setSlide(v => (v + 1) % settings.slides.length), 5500);
+    return () => clearInterval(timer);
+  }, [settings.slides?.length]);
+  useEffect(() => {
+    if (moduleLessons[0]) setLessonId(moduleLessons[0].id);
+  }, [moduleId]);
   async function rate(n) { await api.post('/ratings', { lesson_id: lesson.id, rating: n }); reload(); }
   async function sendSuggestion() {
     await api.post('/suggestions', { lesson_id: lesson?.id, title: 'Sugestão de aula', message: suggest });
     setSuggest('');
   }
-  if (!course) return <Empty title="Nenhum curso" text="Admin precisa criar cursos." />;
+  if (!courses.length) return <Empty title="Nenhum curso" text="Admin precisa criar cursos." />;
+  if (!course) return <div className="learn-page">
+    <HeroSlider slides={settings.slides || []} slide={slide} setSlide={setSlide} />
+    <header className="section-head"><div><h2>Cursos disponíveis</h2><p>Escolha curso para ver módulos.</p></div></header>
+    <div className="poster-grid">
+      {courses.map(c => <button key={c.id} className="poster-card" onClick={() => setCourseId(c.id)}>
+        <img src={c.cover_url || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=80'} />
+        <div><h3>{c.title}</h3><p>{c.description}</p><small>{c.modules.length} módulos</small></div>
+      </button>)}
+    </div>
+  </div>;
+  if (!module) return <div className="learn-page">
+    <button className="back-btn" onClick={() => setCourseId(null)}>Voltar</button>
+    <header className="section-head"><div><h2>{course.title}</h2><p>Módulos</p></div></header>
+    <div className="poster-grid">
+      {course.modules.map(m => <button key={m.id} className="poster-card" onClick={() => setModuleId(m.id)}>
+        <img src={m.cover_url || course.cover_url || 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=900&q=80'} />
+        <div><h3>{m.title}</h3><p>{m.description}</p><small>{m.lessons.length} aulas</small></div>
+      </button>)}
+    </div>
+  </div>;
   return <div className="learn-page">
-    <section className="mentor-hero">
-      <div className="hero-grid-bg" />
-      <div className="hero-copy">
-        <div className="hero-pill"><Sparkles size={14} /> MentoriaWeb</div>
-        <h1>Aprenda processos internos com aulas diretas e organizadas</h1>
-        <p>Escolha um curso, avance por módulos, assista pela plataforma, avalie aulas e peça novas adições.</p>
-      </div>
-      <div className="hero-orbit">
-        <div className="orbit-ring" />
-        <div className="orbit-card main-orbit"><GraduationCap size={34} /><span>Mentoria</span></div>
-        <div className="orbit-card mini one"><BookOpen size={20} /></div>
-        <div className="orbit-card mini two"><Star size={20} /></div>
-        <div className="orbit-card mini three"><Lightbulb size={20} /></div>
-      </div>
-    </section>
-    <header className="section-head">
-      <div><h2>Cursos disponíveis</h2><p>Tela inicial de mentoria.</p></div>
-    </header>
+    <button className="back-btn" onClick={() => setModuleId(null)}>Voltar</button>
+    <header className="section-head"><div><h2>{module.title}</h2><p>{course.title}</p></div></header>
     <div className="learn-grid">
-      <div className="course-list">
-        {courses.map(c => <button key={c.id} className={c.id === course.id ? 'course active' : 'course'} onClick={() => { setCourseId(c.id); setLessonId(null); }}>
-          <img src={c.cover_url || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=80'} />
-          <span>{c.title}</span><small>{c.modules.reduce((n, m) => n + m.lessons.length, 0)} aulas</small>
-        </button>)}
-      </div>
       <div className="player-panel">
         {lesson ? <>
           <iframe src={embedUrl(lesson.video_url)} allow="autoplay; fullscreen; picture-in-picture" allowFullScreen />
@@ -149,15 +156,24 @@ function Learn({ courses, reload }) {
         </> : <Empty title="Curso vazio" text="Sem aulas cadastradas." />}
       </div>
       <div className="lesson-list">
-        {course.modules.map(m => <div key={m.id} className="module">
-          <h3>{m.title}</h3>
-          {m.lessons.map(l => <button key={l.id} className={lesson?.id === l.id ? 'lesson active' : 'lesson'} onClick={() => setLessonId(l.id)}>
+        <div className="module">
+          <h3>Aulas</h3>
+          {moduleLessons.map(l => <button key={l.id} className={lesson?.id === l.id ? 'lesson active' : 'lesson'} onClick={() => setLessonId(l.id)}>
             <Play size={15} /><span>{l.title}</span><small>{l.duration}</small>
           </button>)}
-        </div>)}
+        </div>
       </div>
     </div>
   </div>;
+}
+
+function HeroSlider({ slides, slide, setSlide }) {
+  const active = slides[slide];
+  if (!active) return <section className="mentor-hero empty-hero"><div><div className="hero-pill">SecondBrain</div><h1>Cursos internos</h1><p>Configure slides em Configurações.</p></div></section>;
+  return <section className="hero-slider">
+    <img src={active.image_url} />
+    <div className="slide-dots">{slides.map((_, i) => <button key={i} className={i === slide ? 'active' : ''} onClick={() => setSlide(i)} />)}</div>
+  </section>;
 }
 
 function Empty({ title, text }) {
@@ -196,7 +212,7 @@ function AdminCourses({ courses, reload }) {
       {type === 'module' && <Select label="Curso" value={form.course_id} onChange={v => setForm({ ...form, course_id: v })} options={courses.map(c => [c.id, c.title])} />}
       {type === 'lesson' && <Select label="Módulo" value={form.module_id} onChange={v => setForm({ ...form, module_id: v })} options={courses.flatMap(c => c.modules.map(m => [m.id, `${c.title} / ${m.title}`]))} />}
       <Field label="Título" value={form.title} onChange={v => setForm({ ...form, title: v })} />
-      {type === 'course' && <Field label="Capa URL" value={form.cover_url} onChange={v => setForm({ ...form, cover_url: v })} />}
+      {(type === 'course' || type === 'module') && <ImageField label="Capa vertical 1080x1920" value={form.cover_url} onChange={v => setForm({ ...form, cover_url: v })} />}
       {type !== 'lesson' && <Area label="Descrição" value={form.description} onChange={v => setForm({ ...form, description: v })} />}
       {type === 'lesson' && <>
         <Field label="Duração" value={form.duration} onChange={v => setForm({ ...form, duration: v })} />
@@ -240,6 +256,29 @@ function SuggestionsAdmin() {
   </div>;
 }
 
+function SettingsAdmin() {
+  const [settings, setSettings] = useState({ slides: [] });
+  useEffect(() => { api.get('/settings').then(setSettings); }, []);
+  function addSlide(url) {
+    setSettings({ ...settings, slides: [...(settings.slides || []), { image_url: url }] });
+  }
+  async function save() {
+    await api.put('/settings', settings);
+  }
+  return <div>
+    <header className="topbar"><div><h1>Configurações</h1><p>Slides 1920x1080 da tela inicial.</p></div><button className="primary slim" onClick={save}><Save size={16} />Salvar</button></header>
+    <div className="admin-card">
+      <ImageField label="Novo slide 1920x1080" value="" onChange={addSlide} />
+      <div className="slides-admin">
+        {(settings.slides || []).map((s, i) => <div key={i} className="slide-admin-item">
+          <img src={s.image_url} />
+          <button className="danger" onClick={() => setSettings({ ...settings, slides: settings.slides.filter((_, idx) => idx !== i) })}><Trash2 size={15} /></button>
+        </div>)}
+      </div>
+    </div>
+  </div>;
+}
+
 function Field({ label, value, onChange, type = 'text' }) {
   return <><label>{label}</label><input type={type} value={value || ''} onChange={e => onChange(e.target.value)} /></>;
 }
@@ -249,6 +288,19 @@ function Area({ label, value, onChange }) {
 function Select({ label, value, onChange, options }) {
   return <><label>{label}</label><select value={value || ''} onChange={e => onChange(e.target.value)}><option value="">Selecione</option>{options.map(([v, t]) => <option key={v} value={v}>{t}</option>)}</select></>;
 }
+function fileToDataUrl(file, cb) {
+  const reader = new FileReader();
+  reader.onload = () => cb(reader.result);
+  reader.readAsDataURL(file);
+}
+function ImageField({ label, value, onChange }) {
+  return <div className="image-field">
+    <label>{label}</label>
+    <input type="file" accept="image/*" onChange={e => e.target.files?.[0] && fileToDataUrl(e.target.files[0], onChange)} />
+    <input placeholder="ou cole URL da imagem" value={value || ''} onChange={e => onChange(e.target.value)} />
+    {value && <img src={value} />}
+  </div>;
+}
 function Modal({ title, children, onClose, onSave }) {
   return <div className="modal-bg"><div className="modal"><h2>{title}</h2>{children}<div className="modal-actions"><button onClick={onClose}>Cancelar</button><button className="primary" onClick={onSave}><Save size={16} />Salvar</button></div></div></div>;
 }
@@ -256,18 +308,17 @@ function Modal({ title, children, onClose, onSave }) {
 function App() {
   const [user, setUser] = useState(profile());
   const [tab, setTab] = useState('learn');
-  const [tone, setTone] = useState(localStorage.getItem('tone') || 'aqua');
   const [courses, setCourses] = useState([]);
   async function load() { if (token()) setCourses(await api.get('/courses')); }
   useEffect(() => { load().catch(logout); }, [user]);
-  useEffect(() => { localStorage.setItem('tone', tone); }, [tone]);
   if (!user) return <Login onLogin={() => setUser(profile())} />;
-  return <div className={tone === 'red' ? 'tone-red' : ''}><Shell tab={tab} setTab={setTab} user={user} tone={tone} setTone={setTone}>
+  return <Shell tab={tab} setTab={setTab} user={user}>
     {tab === 'learn' && <Learn courses={courses} reload={load} />}
     {tab === 'admin' && <AdminCourses courses={courses} reload={load} />}
     {tab === 'users' && <UsersAdmin />}
     {tab === 'suggestions' && <SuggestionsAdmin />}
-  </Shell></div>;
+    {tab === 'settings' && <SettingsAdmin />}
+  </Shell>;
 }
 
 createRoot(document.getElementById('root')).render(<App />);

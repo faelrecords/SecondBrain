@@ -123,6 +123,8 @@ app.put('/api/lessons/:id', admin, (req, res) => res.json(db.updateLesson(req.pa
 app.delete('/api/lessons/:id', admin, (req, res) => { db.deleteLesson(req.params.id); res.json({ ok: true }); });
 app.get('/api/suggestions', admin, (req, res) => res.json(db.listSuggestions()));
 app.put('/api/suggestions/:id', admin, (req, res) => res.json(db.updateSuggestion(req.params.id, req.body)));
+app.get('/api/settings', auth, (req, res) => res.json(db.getSettings()));
+app.put('/api/settings', admin, (req, res) => res.json(db.updateSettings(req.body)));
 
 const dist = path.resolve('../frontend/dist');
 if (fs.existsSync(dist)) {

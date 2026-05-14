@@ -16,6 +16,7 @@ const defaultData: any = {
   lessons: [],
   ratings: [],
   suggestions: [],
+  settings: { slides: [] },
   _seq: { users: 0, courses: 0, modules: 0, lessons: 0, ratings: 0, suggestions: 0 }
 };
 
@@ -95,7 +96,7 @@ async function loadDB() {
       created_at: new Date().toISOString()
     };
     db.courses.push(course);
-    const module = { id: nextId(db, 'modules'), course_id: course.id, title: 'Primeiros passos', description: 'Base operacional.', order: 1, created_at: new Date().toISOString() };
+    const module = { id: nextId(db, 'modules'), course_id: course.id, title: 'Primeiros passos', description: 'Base operacional.', cover_url: '', order: 1, created_at: new Date().toISOString() };
     db.modules.push(module);
     db.lessons.push({
       id: nextId(db, 'lessons'),
@@ -212,6 +213,10 @@ Deno.serve(async (req) => {
       return json(req, publicUser(db.users.find((u: any) => u.id === Number(user.id))));
     }
 
+    if (method === 'GET' && path === '/settings') {
+      return json(req, db.settings || { slides: [] });
+    }
+
     if (method === 'GET' && path === '/courses') {
       return json(req, listCourses(db).filter((c: any) => user.is_admin || c.published).map((c: any) => courseTree(db, c, user, user.is_admin)));
     }
@@ -255,6 +260,12 @@ Deno.serve(async (req) => {
     }
 
     adminOnly(user);
+
+    if (method === 'PUT' && path === '/settings') {
+      db.settings = { ...(db.settings || {}), ...(await body(req)) };
+      await saveDB(db);
+      return json(req, db.settings);
+    }
 
     if (method === 'GET' && path === '/users') {
       return json(req, db.users.map(publicUser).sort((a: any, b: any) => a.name.localeCompare(b.name)));
@@ -330,7 +341,7 @@ Deno.serve(async (req) => {
 
     if (method === 'POST' && path === '/modules') {
       const b = await body(req);
-      const row = { id: nextId(db, 'modules'), course_id: Number(b.course_id), title: b.title, description: b.description || '', order: Number(b.order || db.modules.length + 1), created_at: new Date().toISOString() };
+      const row = { id: nextId(db, 'modules'), course_id: Number(b.course_id), title: b.title, description: b.description || '', cover_url: b.cover_url || '', order: Number(b.order || db.modules.length + 1), created_at: new Date().toISOString() };
       db.modules.push(row);
       await saveDB(db);
       return json(req, row);
