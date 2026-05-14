@@ -346,9 +346,11 @@ function FeedbackAdmin() {
 
 function SettingsAdmin() {
   const [settings, setSettings] = useState({ slides: [] });
+  const [pendingSlide, setPendingSlide] = useState('');
   useEffect(() => { api.get('/settings').then(setSettings); }, []);
   function addSlide(url) {
     setSettings({ ...settings, slides: [...(settings.slides || []), { image_url: url }] });
+    setPendingSlide('');
   }
   async function save() {
     await api.put('/settings', settings);
@@ -356,7 +358,8 @@ function SettingsAdmin() {
   return <div>
     <header className="topbar"><div><h1>Configurações</h1></div><button className="primary slim" onClick={save}><Save size={16} />Salvar</button></header>
     <div className="admin-card">
-      <ImageField label="Novo slide 1920x1080" value="" onChange={addSlide} />
+      <ImageField label="Novo slide 1920x1080" value={pendingSlide} onChange={setPendingSlide} />
+      <button className="primary add-slide-btn" disabled={!pendingSlide} onClick={() => addSlide(pendingSlide)}><Plus size={16} />Adicionar slide</button>
       <div className="slides-admin">
         {(settings.slides || []).map((s, i) => <div key={i} className="slide-admin-item">
           <img src={s.image_url} />

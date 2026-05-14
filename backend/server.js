@@ -13,7 +13,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 
 seed();
 app.use(cors());
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '15mb' }));
 
 function sign(user) {
   return jwt.sign({

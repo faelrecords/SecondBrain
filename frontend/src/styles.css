@@ -55,7 +55,7 @@ body::after {
 button, input, textarea, select { font: inherit; }
 button {
   border: 1px solid var(--line);
-  background: rgba(255,255,255,.045);
+  background: rgba(var(--accent-rgb), .075);
   color: var(--text);
   border-radius: 12px;
   padding: 10px 14px;
@@ -68,9 +68,12 @@ button {
 }
 button:hover {
   border-color: var(--line-strong);
-  background: rgba(var(--accent-rgb), .10);
-  box-shadow: 0 0 24px rgba(var(--accent-rgb), .13);
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), .18);
+  box-shadow: 0 0 30px rgba(var(--accent-rgb), .22), inset 0 1px 0 rgba(255,255,255,.08);
+  transform: translateY(-1px);
 }
+button:active { transform: translateY(0); }
 button:disabled { opacity: .45; cursor: not-allowed; }
 input, textarea, select {
   width: 100%;
@@ -167,6 +170,11 @@ nav button.active {
   background: linear-gradient(90deg, rgba(var(--accent-rgb), .18), rgba(var(--accent-rgb), .04));
   border-color: var(--line-strong);
   color: var(--text);
+}
+nav button:hover,
+.logout:hover {
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), .13);
 }
 .side-bottom {
   position: absolute;
@@ -633,6 +641,10 @@ nav button.active {
   border-radius: 14px;
   border: 1px solid var(--line);
 }
+.add-slide-btn {
+  width: fit-content;
+  margin-top: 12px;
+}
 .slides-admin {
   margin-top: 18px;
   display: grid;
@@ -711,6 +723,9 @@ nav button.active {
   background: transparent;
   color: var(--muted);
   font-weight: 800;
+}
+.role-switch button:hover {
+  color: var(--accent);
 }
 .role-switch button.active {
   color: #020403;
