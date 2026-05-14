@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BookOpen, GraduationCap, LayoutDashboard, Lightbulb, LogOut, Play, Plus, Save, Star, Trash2, Users } from 'lucide-react';
+import { BookOpen, Flame, GraduationCap, LayoutDashboard, Lightbulb, LogOut, Palette, Play, Plus, Save, Sparkles, Star, Trash2, Users, Waves } from 'lucide-react';
 import './styles.css';
 
 const API = import.meta.env.VITE_API_URL || (
@@ -62,7 +62,7 @@ function Login({ onLogin }) {
   </main>;
 }
 
-function Shell({ children, tab, setTab, user }) {
+function Shell({ children, tab, setTab, user, tone, setTone }) {
   const nav = user?.is_admin
     ? [['learn', BookOpen, 'Aulas'], ['admin', LayoutDashboard, 'Cursos'], ['users', Users, 'Usuários'], ['suggestions', Lightbulb, 'Sugestões']]
     : [['learn', BookOpen, 'Aulas']];
@@ -72,7 +72,13 @@ function Shell({ children, tab, setTab, user }) {
       <nav>{nav.map(([id, Icon, label]) =>
         <button key={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}><Icon size={18} />{label}</button>
       )}</nav>
-      <button className="logout" onClick={logout}><LogOut size={18} />Sair</button>
+      <div className="side-bottom">
+        <button className="tone-toggle" onClick={() => setTone(tone === 'aqua' ? 'red' : 'aqua')}>
+          {tone === 'aqua' ? <Waves size={18} /> : <Flame size={18} />}
+          {tone === 'aqua' ? 'Cyano' : 'Vermelho'}
+        </button>
+        <button className="logout" onClick={logout}><LogOut size={18} />Sair</button>
+      </div>
     </aside>
     <section className="main">{children}</section>
   </div>;
@@ -98,9 +104,24 @@ function Learn({ courses, reload }) {
     setSuggest('');
   }
   if (!course) return <Empty title="Nenhum curso" text="Admin precisa criar cursos." />;
-  return <div>
-    <header className="topbar">
-      <div><h1>Trilhas internas</h1><p>Assista aulas, avalie conteúdo e envie sugestões.</p></div>
+  return <div className="learn-page">
+    <section className="mentor-hero">
+      <div className="hero-grid-bg" />
+      <div className="hero-copy">
+        <div className="hero-pill"><Sparkles size={14} /> MentoriaWeb</div>
+        <h1>Aprenda processos internos com aulas diretas e organizadas</h1>
+        <p>Escolha um curso, avance por módulos, assista pela plataforma, avalie aulas e peça novas adições.</p>
+      </div>
+      <div className="hero-orbit">
+        <div className="orbit-ring" />
+        <div className="orbit-card main-orbit"><GraduationCap size={34} /><span>Mentoria</span></div>
+        <div className="orbit-card mini one"><BookOpen size={20} /></div>
+        <div className="orbit-card mini two"><Star size={20} /></div>
+        <div className="orbit-card mini three"><Lightbulb size={20} /></div>
+      </div>
+    </section>
+    <header className="section-head">
+      <div><h2>Cursos disponíveis</h2><p>Tela inicial de mentoria.</p></div>
     </header>
     <div className="learn-grid">
       <div className="course-list">
@@ -235,16 +256,18 @@ function Modal({ title, children, onClose, onSave }) {
 function App() {
   const [user, setUser] = useState(profile());
   const [tab, setTab] = useState('learn');
+  const [tone, setTone] = useState(localStorage.getItem('tone') || 'aqua');
   const [courses, setCourses] = useState([]);
   async function load() { if (token()) setCourses(await api.get('/courses')); }
   useEffect(() => { load().catch(logout); }, [user]);
+  useEffect(() => { localStorage.setItem('tone', tone); }, [tone]);
   if (!user) return <Login onLogin={() => setUser(profile())} />;
-  return <Shell tab={tab} setTab={setTab} user={user}>
+  return <div className={tone === 'red' ? 'tone-red' : ''}><Shell tab={tab} setTab={setTab} user={user} tone={tone} setTone={setTone}>
     {tab === 'learn' && <Learn courses={courses} reload={load} />}
     {tab === 'admin' && <AdminCourses courses={courses} reload={load} />}
     {tab === 'users' && <UsersAdmin />}
     {tab === 'suggestions' && <SuggestionsAdmin />}
-  </Shell>;
+  </Shell></div>;
 }
 
 createRoot(document.getElementById('root')).render(<App />);
