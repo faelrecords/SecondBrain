@@ -138,7 +138,7 @@ function Learn({ courses, reload }) {
     <div className="continue-row">
       <button className="primary continue-btn" onClick={() => continueWhereStopped(courses[0])}><Play size={17} />Continuar de onde parou</button>
     </div>
-    <header className="section-head"><div><h2>Cursos disponíveis</h2><p>Escolha curso para ver módulos.</p></div></header>
+    <header className="section-head"><div><h2>Cursos disponíveis</h2></div></header>
     <div className="poster-grid">
       {courses.map(c => <button key={c.id} className="poster-card" onClick={() => setCourseId(c.id)}>
         <img src={c.cover_url || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=80'} />
@@ -148,7 +148,7 @@ function Learn({ courses, reload }) {
   </div>;
   if (!module) return <div className="learn-page">
     <button className="back-btn" onClick={() => setCourseId(null)}>Voltar</button>
-    <header className="section-head"><div><h2>{course.title}</h2><p>Módulos</p></div><button className="primary slim" onClick={() => continueWhereStopped(course)}><Play size={16} />Continuar de onde parou</button></header>
+    <header className="section-head"><div><h2>{course.title}</h2></div><button className="primary slim" onClick={() => continueWhereStopped(course)}><Play size={16} />Continuar de onde parou</button></header>
     <div className="poster-grid">
       {course.modules.map(m => <button key={m.id} className="poster-card" onClick={() => setModuleId(m.id)}>
         <img src={m.cover_url || course.cover_url || 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=900&q=80'} />
@@ -198,7 +198,7 @@ function Learn({ courses, reload }) {
 
 function HeroSlider({ slides, slide, setSlide }) {
   const active = slides[slide];
-  if (!active) return <section className="mentor-hero empty-hero"><div><div className="hero-pill">SecondBrain</div><h1>Cursos internos</h1><p>Configure slides em Configurações.</p></div></section>;
+  if (!active) return <section className="mentor-hero empty-hero"><div><div className="hero-pill">SecondBrain</div><h1>Cursos internos</h1></div></section>;
   return <section className="hero-slider">
     <img src={active.image_url} />
     <div className="slide-dots">{slides.map((_, i) => <button key={i} className={i === slide ? 'active' : ''} onClick={() => setSlide(i)} />)}</div>
@@ -265,7 +265,7 @@ function UsersAdmin() {
     else await api.put(`/users/${editing}`, form);
     setEditing(null); load();
   }
-  return <div><header className="topbar"><div><h1>Usuários</h1><p>Mesmo padrão administrativo do Biblio.</p></div><button className="primary slim" onClick={() => open()}><Plus size={16} />Usuário</button></header>
+  return <div><header className="topbar"><div><h1>Usuários</h1></div><button className="primary slim" onClick={() => open()}><Plus size={16} />Usuário</button></header>
     <div className="table">{users.map(u => <div className="table-row" key={u.id}><div className="avatar">{u.name[0]}</div><div><b>{u.name}</b><small>{u.email || 'sem email'} · {u.is_admin ? 'admin' : 'aluno'}</small></div><button onClick={() => open(u)}>Editar</button>{!u.is_super && <button className="danger" onClick={async () => { await api.del(`/users/${u.id}`); load(); }}>Excluir</button>}</div>)}</div>
     {editing && <Modal title={editing === 'new' ? 'Novo usuário' : 'Editar usuário'} onClose={() => setEditing(null)} onSave={save}>
       <Field label="Nome" value={form.name} onChange={v => setForm({ ...form, name: v })} />
@@ -288,7 +288,7 @@ function SuggestionsAdmin() {
     await api.del(`/suggestions/${id}`);
     load();
   }
-  return <div><header className="topbar"><div><h1>Sugestões</h1><p>Pedidos enviados por usuários.</p></div></header>
+  return <div><header className="topbar"><div><h1>Sugestões</h1></div></header>
     <div className="admin-stack">{items.map(s => <div className="admin-card suggestion" key={s.id}>
       <div><small>{s.user_name} · {s.lesson_title || 'geral'}</small><h2>{s.title}</h2><p>{s.message}</p></div>
       <div className="suggestion-controls">
@@ -316,7 +316,7 @@ function UserSuggestions() {
   }
   const label = { open: 'em análise', planned: 'implementando', done: 'implementada', rejected: 'rejeitada' };
   return <div>
-    <header className="topbar"><div><h1>Sugestões</h1><p>Envie ideias e acompanhe status.</p></div></header>
+    <header className="topbar"><div><h1>Sugestões</h1></div></header>
     <div className="admin-card suggestion-form">
       <Field label="Título" value={form.title} onChange={v => setForm({ ...form, title: v })} />
       <Area label="Sugestão" value={form.message} onChange={v => setForm({ ...form, message: v })} />
@@ -354,7 +354,7 @@ function SettingsAdmin() {
     await api.put('/settings', settings);
   }
   return <div>
-    <header className="topbar"><div><h1>Configurações</h1><p>Slides 1920x1080 da tela inicial.</p></div><button className="primary slim" onClick={save}><Save size={16} />Salvar</button></header>
+    <header className="topbar"><div><h1>Configurações</h1></div><button className="primary slim" onClick={save}><Save size={16} />Salvar</button></header>
     <div className="admin-card">
       <ImageField label="Novo slide 1920x1080" value="" onChange={addSlide} />
       <div className="slides-admin">
