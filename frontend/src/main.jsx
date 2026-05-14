@@ -271,7 +271,10 @@ function UsersAdmin() {
       <Field label="Nome" value={form.name} onChange={v => setForm({ ...form, name: v })} />
       <Field label="Email" value={form.email} onChange={v => setForm({ ...form, email: v })} />
       <Field label="Senha" type="password" value={form.password} onChange={v => setForm({ ...form, password: v })} />
-      <label className="check"><input type="checkbox" checked={form.is_admin} onChange={e => setForm({ ...form, is_admin: e.target.checked })} /> Administrador</label>
+      <div className="role-switch">
+        <button type="button" className={!form.is_admin ? 'active' : ''} onClick={() => setForm({ ...form, is_admin: false })}>User</button>
+        <button type="button" className={form.is_admin ? 'active' : ''} onClick={() => setForm({ ...form, is_admin: true })}>Admin</button>
+      </div>
     </Modal>}
   </div>;
 }

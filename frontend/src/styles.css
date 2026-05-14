@@ -621,6 +621,28 @@ nav button.active {
 }
 .check { display: flex; gap: 9px; align-items: center; }
 .check input { width: auto; }
+.role-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 16px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(0,0,0,.28);
+}
+.role-switch button {
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 800;
+}
+.role-switch button.active {
+  color: #020403;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  box-shadow: 0 0 22px rgba(var(--accent-rgb), .24);
+}
 .empty {
   padding: 54px;
   text-align: center;
