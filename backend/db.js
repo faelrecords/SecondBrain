@@ -236,6 +236,10 @@ export const db = {
     if (row) { Object.assign(row, patch); persist(); }
     return row;
   },
+  deleteSuggestion: id => {
+    data.suggestions = data.suggestions.filter(s => s.id !== Number(id));
+    persist();
+  },
   listFeedback: () => ({
     suggestions: db.listSuggestions(),
     ratings: [...data.ratings]

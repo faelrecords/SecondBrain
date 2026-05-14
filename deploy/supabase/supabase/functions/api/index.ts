@@ -451,6 +451,11 @@ Deno.serve(async (req) => {
       await saveDB(db);
       return json(req, row);
     }
+    if (m && method === 'DELETE') {
+      db.suggestions = db.suggestions.filter((s: any) => s.id !== Number(m![1]));
+      await saveDB(db);
+      return json(req, { ok: true });
+    }
 
     throw new HttpError(404, 'não encontrado');
   } catch (e) {

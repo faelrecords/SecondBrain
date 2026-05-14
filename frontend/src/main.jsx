@@ -283,8 +283,24 @@ function SuggestionsAdmin() {
   const [items, setItems] = useState([]);
   async function load() { setItems(await api.get('/suggestions')); }
   useEffect(() => { load(); }, []);
+  async function remove(id) {
+    if (!confirm('Excluir sugestão?')) return;
+    await api.del(`/suggestions/${id}`);
+    load();
+  }
   return <div><header className="topbar"><div><h1>Sugestões</h1><p>Pedidos enviados por usuários.</p></div></header>
-    <div className="admin-stack">{items.map(s => <div className="admin-card suggestion" key={s.id}><div><small>{s.user_name} · {s.lesson_title || 'geral'}</small><h2>{s.title}</h2><p>{s.message}</p></div><select value={s.status} onChange={async e => { await api.put(`/suggestions/${s.id}`, { status: e.target.value }); load(); }}><option value="open">em análise</option><option value="planned">implementando</option><option value="done">implementada</option><option value="rejected">rejeitada</option></select></div>)}</div>
+    <div className="admin-stack">{items.map(s => <div className="admin-card suggestion" key={s.id}>
+      <div><small>{s.user_name} · {s.lesson_title || 'geral'}</small><h2>{s.title}</h2><p>{s.message}</p></div>
+      <div className="suggestion-controls">
+        <select className="status-select" value={s.status} onChange={async e => { await api.put(`/suggestions/${s.id}`, { status: e.target.value }); load(); }}>
+          <option value="open">em análise</option>
+          <option value="planned">implementando</option>
+          <option value="done">implementada</option>
+          <option value="rejected">rejeitada</option>
+        </select>
+        <button className="danger" onClick={() => remove(s.id)}><Trash2 size={15} />Excluir</button>
+      </div>
+    </div>)}</div>
   </div>;
 }
 

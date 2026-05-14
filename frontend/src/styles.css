@@ -527,7 +527,28 @@ nav button.active {
   justify-content: space-between;
   gap: 20px;
 }
-.suggestion select { width: 150px; }
+.suggestion-controls {
+  min-width: 190px;
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+.status-select {
+  appearance: none;
+  background:
+    linear-gradient(45deg, transparent 50%, var(--accent) 50%) calc(100% - 18px) 50% / 6px 6px no-repeat,
+    linear-gradient(135deg, var(--accent) 50%, transparent 50%) calc(100% - 14px) 50% / 6px 6px no-repeat,
+    rgba(var(--accent-rgb), .08);
+  border-color: var(--line-strong);
+  color: var(--accent);
+  font-weight: 800;
+  padding-right: 38px;
+  cursor: pointer;
+}
+.status-select option {
+  background: #06100f;
+  color: var(--text);
+}
 .image-field {
   display: grid;
   gap: 8px;
