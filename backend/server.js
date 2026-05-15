@@ -46,14 +46,18 @@ function withStats(lesson, userId) {
   const stats = db.ratingStats(lesson.id);
   const progress = db.lessonProgress(lesson.id, userId);
   const rating = db.lessonRating(lesson.id, userId);
-  return { ...lesson, rating_avg: stats.avg, rating_count: stats.count, my_rating: rating?.rating || 0, my_comment: rating?.comment || '', watched: !!progress?.watched };
+  return { ...lesson, rating_avg: stats.avg, rating_count: stats.count, my_rating: rating?.rating || 0, my_comment: rating?.comment || '', watched: !!progress?.watched, comment_count: db.listComments(lesson.id).length };
 }
 
 function courseTree(course, userId, adminView = false) {
+  const progress = db.progressForCourse(course, userId);
   return {
     ...course,
+    ...progress,
     modules: db.listModules(course.id).map(module => ({
       ...module,
+      quiz_count: db.parseQuiz(module).length,
+      my_quiz_best: db.bestQuiz(module.id, userId),
       lessons: db.listLessons(module.id).map(lesson => adminView ? lesson : withStats(lesson, userId))
     }))
   };
@@ -66,8 +70,39 @@ app.post('/api/auth/login', (req, res) => {
   }
   res.json({ token: sign(user), user: publicUser(user) });
 });
+app.post('/api/auth/register', (req, res) => {
+  const { name, email, password } = req.body;
+  if (!name || !password || password.length < 4) return res.status(400).json({ error: 'nome e senha obrigatórios' });
+  if (db.findUserByIdentifier(name) || (email && db.findUserByIdentifier(email))) return res.status(400).json({ error: 'usuário já existe' });
+  const row = db.createUser({ name, email, is_admin: false, password_hash: bcrypt.hashSync(password, 10) });
+  res.json({ token: sign(row), user: publicUser(row) });
+});
+app.post('/api/auth/recover', (req, res) => {
+  const row = db.findUserByIdentifier(req.body.identifier);
+  if (!row) return res.status(404).json({ error: 'usuário não encontrado' });
+  if (!req.body.password || req.body.password.length < 4) return res.status(400).json({ error: 'senha inválida' });
+  res.json(publicUser(db.updateUser(row.id, { password_hash: bcrypt.hashSync(req.body.password, 10) })));
+});
+app.get('/api/certificates/verify/:code', (req, res) => {
+  const row = db.verifyCertificate(req.params.code);
+  if (!row) return res.status(404).json({ error: 'certificado não encontrado' });
+  res.json(row);
+});
 
 app.get('/api/me', auth, (req, res) => res.json(publicUser(db.findUser(req.auth.id))));
+app.put('/api/me', auth, (req, res) => {
+  const patch = { name: req.body.name, email: req.body.email || '', bio: req.body.bio || '', avatar_url: req.body.avatar_url || '' };
+  if (req.body.password) patch.password_hash = bcrypt.hashSync(req.body.password, 10);
+  res.json(publicUser(db.updateUser(req.auth.id, patch)));
+});
+
+app.get('/api/dashboard', auth, (req, res) => {
+  const courses = db.listCourses().filter(c => req.auth.is_admin || c.published).map(c => courseTree(c, req.auth.id, false));
+  const total = courses.reduce((sum, c) => sum + c.total_lessons, 0);
+  const watched = courses.reduce((sum, c) => sum + c.watched_lessons, 0);
+  const certificates = db.listCertificates(req.auth.id);
+  res.json({ progress_percent: total ? Math.round((watched / total) * 100) : 0, watched_lessons: watched, total_lessons: total, in_progress: courses.filter(c => c.watched_lessons > 0 && c.watched_lessons < c.total_lessons), completed: courses.filter(c => c.total_lessons && c.watched_lessons === c.total_lessons), certificates, achievements: [watched > 0 ? 'Primeira aula concluída' : null, certificates.length ? 'Certificado emitido' : null].filter(Boolean) });
+});
 
 app.get('/api/courses', auth, (req, res) => {
   const list = db.listCourses()
@@ -96,6 +131,32 @@ app.post('/api/progress/watch', auth, (req, res) => {
   }
 });
 
+app.get('/api/lessons/:id/comments', auth, (req, res) => res.json(db.listComments(req.params.id)));
+app.post('/api/lessons/:id/comments', auth, (req, res) => {
+  if (!String(req.body.message || '').trim()) return res.status(400).json({ error: 'comentário obrigatório' });
+  res.json(db.createComment({ lesson_id: req.params.id, user_id: req.auth.id, message: String(req.body.message).trim() }));
+});
+app.get('/api/questions', auth, (req, res) => res.json(db.listQuestions(req.auth)));
+app.post('/api/questions', auth, (req, res) => {
+  if (!String(req.body.message || '').trim()) return res.status(400).json({ error: 'pergunta obrigatória' });
+  res.json(db.createQuestion({ lesson_id: req.body.lesson_id, user_id: req.auth.id, title: req.body.title, message: String(req.body.message).trim() }));
+});
+app.get('/api/forum', auth, (req, res) => res.json(db.listForum()));
+app.post('/api/forum', auth, (req, res) => {
+  if (!String(req.body.message || '').trim()) return res.status(400).json({ error: 'mensagem obrigatória' });
+  res.json(db.createForum({ user_id: req.auth.id, title: req.body.title, message: String(req.body.message).trim() }));
+});
+app.get('/api/notifications', auth, (req, res) => res.json(db.listNotifications(req.auth.id)));
+app.put('/api/notifications/:id/read', auth, (req, res) => res.json(db.readNotification(req.params.id, req.auth.id) || { ok: true }));
+app.post('/api/quiz/attempts', auth, (req, res) => res.json(db.submitQuiz({ module_id: req.body.module_id, user_id: req.auth.id, answers: req.body.answers || [] })));
+app.get('/api/certificates', auth, (req, res) => res.json(db.listCertificates(req.auth.id)));
+app.post('/api/certificates', auth, (req, res) => {
+  const course = db.findCourse(req.body.course_id);
+  if (!course) return res.status(404).json({ error: 'curso não existe' });
+  if (db.progressForCourse(course, req.auth.id).progress_percent < 100) return res.status(400).json({ error: 'curso incompleto' });
+  res.json(db.issueCertificate(course.id, req.auth.id));
+});
+
 app.post('/api/suggestions', auth, (req, res) => {
   if (!String(req.body.message || '').trim()) return res.status(400).json({ error: 'sugestão obrigatória' });
   res.json(db.createSuggestion({
@@ -108,6 +169,8 @@ app.post('/api/suggestions', auth, (req, res) => {
 app.get('/api/me/suggestions', auth, (req, res) => res.json(db.listUserSuggestions(req.auth.id)));
 
 app.get('/api/users', admin, (req, res) => res.json(db.listUsers()));
+app.get('/api/admin/progress', admin, (req, res) => res.json(db.progressReport()));
+app.put('/api/questions/:id', admin, (req, res) => res.json(db.answerQuestion(req.params.id, req.body, req.auth.id)));
 app.post('/api/users', admin, (req, res) => {
   const { name, email, password, is_admin } = req.body;
   if (!name || !password || password.length < 4) return res.status(400).json({ error: 'nome e senha obrigatórios' });
@@ -123,13 +186,21 @@ app.put('/api/users/:id', admin, (req, res) => {
 });
 app.delete('/api/users/:id', admin, (req, res) => res.json({ ok: db.deleteUser(req.params.id) }));
 
-app.post('/api/courses', admin, (req, res) => res.json(db.createCourse(req.body)));
+app.post('/api/courses', admin, (req, res) => {
+  const row = db.createCourse(req.body);
+  db.notify({ type: 'content', title: 'Novo curso', message: row.title });
+  res.json(row);
+});
 app.put('/api/courses/:id', admin, (req, res) => res.json(db.updateCourse(req.params.id, req.body)));
 app.delete('/api/courses/:id', admin, (req, res) => { db.deleteCourse(req.params.id); res.json({ ok: true }); });
 app.post('/api/modules', admin, (req, res) => res.json(db.createModule(req.body)));
 app.put('/api/modules/:id', admin, (req, res) => res.json(db.updateModule(req.params.id, req.body)));
 app.delete('/api/modules/:id', admin, (req, res) => { db.deleteModule(req.params.id); res.json({ ok: true }); });
-app.post('/api/lessons', admin, (req, res) => res.json(db.createLesson(req.body)));
+app.post('/api/lessons', admin, (req, res) => {
+  const row = db.createLesson(req.body);
+  db.notify({ type: 'content', title: 'Nova aula', message: row.title });
+  res.json(row);
+});
 app.put('/api/lessons/:id', admin, (req, res) => res.json(db.updateLesson(req.params.id, req.body)));
 app.delete('/api/lessons/:id', admin, (req, res) => { db.deleteLesson(req.params.id); res.json({ ok: true }); });
 app.get('/api/suggestions', admin, (req, res) => res.json(db.listSuggestions()));

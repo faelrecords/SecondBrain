@@ -17,8 +17,14 @@ const defaultData: any = {
   ratings: [],
   progress: [],
   suggestions: [],
+  comments: [],
+  questions: [],
+  forum_posts: [],
+  quiz_attempts: [],
+  certificates: [],
+  notifications: [],
   settings: { slides: [] },
-  _seq: { users: 0, courses: 0, modules: 0, lessons: 0, ratings: 0, progress: 0, suggestions: 0 }
+  _seq: { users: 0, courses: 0, modules: 0, lessons: 0, ratings: 0, progress: 0, suggestions: 0, comments: 0, questions: 0, forum_posts: 0, quiz_attempts: 0, certificates: 0, notifications: 0 }
 };
 
 class HttpError extends Error {
@@ -56,6 +62,21 @@ function ensureShape(db: any) {
   const base = cloneDefault();
   for (const key of Object.keys(base)) if (db[key] === undefined) db[key] = base[key];
   for (const key of Object.keys(base._seq)) if (typeof db._seq[key] !== 'number') db._seq[key] = 0;
+  for (const c of db.courses) {
+    c.category ||= 'Geral';
+    c.level ||= 'iniciante';
+    c.workload ||= c.duration || '';
+    c.access_mode ||= 'sequential';
+  }
+  for (const m of db.modules) {
+    m.min_score = Number(m.min_score || 70);
+    m.quiz_json ||= '';
+  }
+  for (const l of db.lessons) {
+    l.material_url ||= '';
+    l.material_links ||= '';
+    l.transcript ||= '';
+  }
   return db;
 }
 
@@ -92,12 +113,16 @@ async function loadDB() {
       title: 'Onboarding Comercial',
       description: 'Processos internos, rotina e qualidade de atendimento.',
       cover_url: 'https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=1200&q=80',
+      category: 'Onboarding',
+      level: 'iniciante',
+      workload: '08 min',
+      access_mode: 'sequential',
       published: true,
       order: 1,
       created_at: new Date().toISOString()
     };
     db.courses.push(course);
-    const module = { id: nextId(db, 'modules'), course_id: course.id, title: 'Primeiros passos', description: 'Base operacional.', cover_url: '', order: 1, created_at: new Date().toISOString() };
+    const module = { id: nextId(db, 'modules'), course_id: course.id, title: 'Primeiros passos', description: 'Base operacional.', cover_url: '', min_score: 70, quiz_json: '', order: 1, created_at: new Date().toISOString() };
     db.modules.push(module);
     db.lessons.push({
       id: nextId(db, 'lessons'),
@@ -106,6 +131,8 @@ async function loadDB() {
       summary: 'Visão geral da rotina, ordem das aulas, avaliação e envio de sugestões.',
       video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
       material_url: '',
+      material_links: '',
+      transcript: 'Use a plataforma para assistir aulas, concluir etapas, responder quizzes e gerar certificados.',
       duration: '08 min',
       order: 1,
       created_at: new Date().toISOString()
@@ -181,18 +208,72 @@ function lessonProgress(db: any, lessonId: number, userId: number) {
   return db.progress.find((p: any) => p.lesson_id === Number(lessonId) && p.user_id === Number(userId)) || null;
 }
 
+function parseQuiz(module: any) {
+  try {
+    const parsed = JSON.parse(module.quiz_json || '[]');
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function bestQuiz(db: any, moduleId: number, userId: number) {
+  const attempts = db.quiz_attempts.filter((a: any) => a.module_id === Number(moduleId) && a.user_id === Number(userId));
+  return attempts.sort((a: any, b: any) => (b.percent || 0) - (a.percent || 0))[0] || null;
+}
+
+function progressForCourse(db: any, course: any, userId: number) {
+  const moduleIds = db.modules.filter((m: any) => m.course_id === course.id).map((m: any) => m.id);
+  const lessons = db.lessons.filter((l: any) => moduleIds.includes(l.module_id));
+  const watched = lessons.filter((l: any) => lessonProgress(db, l.id, userId)?.watched).length;
+  return { total_lessons: lessons.length, watched_lessons: watched, progress_percent: lessons.length ? Math.round((watched / lessons.length) * 100) : 0 };
+}
+
+function addNotification(db: any, input: any) {
+  const targets = input.user_id ? [Number(input.user_id)] : db.users.filter((u: any) => !u.is_admin).map((u: any) => u.id);
+  for (const userId of targets) {
+    db.notifications.push({
+      id: nextId(db, 'notifications'),
+      user_id: userId,
+      type: input.type || 'info',
+      title: input.title,
+      message: input.message || '',
+      link: input.link || '',
+      read: false,
+      created_at: new Date().toISOString()
+    });
+  }
+}
+
+function certificateCode(row: any) {
+  return `SB-${row.user_id}-${row.course_id}-${row.id}`;
+}
+
 function withStats(db: any, lesson: any, userId: number) {
   const stats = ratingStats(db, lesson.id);
   const rating = lessonRating(db, lesson.id, userId);
   const progress = lessonProgress(db, lesson.id, userId);
-  return { ...lesson, rating_avg: stats.avg, rating_count: stats.count, my_rating: rating?.rating || 0, my_comment: rating?.comment || '', watched: !!progress?.watched };
+  return {
+    ...lesson,
+    rating_avg: stats.avg,
+    rating_count: stats.count,
+    my_rating: rating?.rating || 0,
+    my_comment: rating?.comment || '',
+    watched: !!progress?.watched,
+    comment_count: db.comments.filter((c: any) => c.lesson_id === lesson.id).length,
+    question_count: db.questions.filter((q: any) => q.lesson_id === lesson.id).length
+  };
 }
 
 function courseTree(db: any, course: any, user: any, adminView = false) {
+  const progress = progressForCourse(db, course, user.id);
   return {
     ...course,
+    ...progress,
     modules: listModules(db, course.id).map((module: any) => ({
       ...module,
+      quiz_count: parseQuiz(module).length,
+      my_quiz_best: bestQuiz(db, module.id, user.id),
       lessons: listLessons(db, module.id).map((lesson: any) => adminView ? lesson : withStats(db, lesson, user.id))
     }))
   };
@@ -215,10 +296,65 @@ Deno.serve(async (req) => {
       return json(req, { token: sign(user), user: publicUser(user) });
     }
 
+    if (method === 'POST' && path === '/auth/register') {
+      const b = await body(req);
+      if (!b.name || !b.password || String(b.password).length < 4) throw new HttpError(400, 'nome e senha obrigatórios');
+      if (findUserByIdentifier(db, b.name) || (b.email && findUserByIdentifier(db, b.email))) throw new HttpError(400, 'usuário já existe');
+      const row = {
+        id: nextId(db, 'users'),
+        name: b.name,
+        email: b.email || '',
+        role: 'student',
+        bio: b.bio || '',
+        avatar_url: b.avatar_url || '',
+        is_admin: false,
+        is_super: false,
+        password_hash: bcrypt.hashSync(b.password, 10),
+        created_at: new Date().toISOString()
+      };
+      db.users.push(row);
+      await saveDB(db);
+      return json(req, { token: sign(row), user: publicUser(row) });
+    }
+
+    if (method === 'POST' && path === '/auth/recover') {
+      const b = await body(req);
+      const row = findUserByIdentifier(db, b.identifier);
+      if (!row) throw new HttpError(404, 'usuário não encontrado');
+      if (!b.password || String(b.password).length < 4) throw new HttpError(400, 'senha inválida');
+      row.password_hash = bcrypt.hashSync(b.password, 10);
+      await saveDB(db);
+      return json(req, { ok: true });
+    }
+
+    const verifyMatch = path.match(/^\/certificates\/verify\/([^/]+)$/);
+    if (method === 'GET' && verifyMatch) {
+      const cert = db.certificates.find((c: any) => c.code === verifyMatch[1]);
+      if (!cert) throw new HttpError(404, 'certificado não encontrado');
+      return json(req, {
+        ...cert,
+        user_name: db.users.find((u: any) => u.id === cert.user_id)?.name || '',
+        course_title: db.courses.find((c: any) => c.id === cert.course_id)?.title || ''
+      });
+    }
+
     const user = auth(req);
 
     if (method === 'GET' && path === '/me') {
       return json(req, publicUser(db.users.find((u: any) => u.id === Number(user.id))));
+    }
+
+    if (method === 'PUT' && path === '/me') {
+      const row = db.users.find((u: any) => u.id === Number(user.id));
+      if (!row) throw new HttpError(404, 'usuário não existe');
+      const b = await body(req);
+      row.name = b.name || row.name;
+      row.email = b.email || '';
+      row.bio = b.bio || '';
+      row.avatar_url = b.avatar_url || '';
+      if (b.password) row.password_hash = bcrypt.hashSync(b.password, 10);
+      await saveDB(db);
+      return json(req, publicUser(row));
     }
 
     if (method === 'GET' && path === '/settings') {
@@ -227,6 +363,26 @@ Deno.serve(async (req) => {
 
     if (method === 'GET' && path === '/courses') {
       return json(req, listCourses(db).filter((c: any) => user.is_admin || c.published).map((c: any) => courseTree(db, c, user, user.is_admin)));
+    }
+
+    if (method === 'GET' && path === '/dashboard') {
+      const courses = listCourses(db).filter((c: any) => user.is_admin || c.published).map((c: any) => courseTree(db, c, user, false));
+      const total = courses.reduce((sum: number, c: any) => sum + c.total_lessons, 0);
+      const watched = courses.reduce((sum: number, c: any) => sum + c.watched_lessons, 0);
+      const certificates = db.certificates.filter((c: any) => c.user_id === Number(user.id));
+      return json(req, {
+        progress_percent: total ? Math.round((watched / total) * 100) : 0,
+        watched_lessons: watched,
+        total_lessons: total,
+        in_progress: courses.filter((c: any) => c.watched_lessons > 0 && c.watched_lessons < c.total_lessons),
+        completed: courses.filter((c: any) => c.total_lessons && c.watched_lessons === c.total_lessons),
+        certificates,
+        achievements: [
+          watched > 0 ? 'Primeira aula concluída' : null,
+          certificates.length ? 'Certificado emitido' : null,
+          watched >= 10 ? '10 aulas concluídas' : null
+        ].filter(Boolean)
+      });
     }
 
     const courseIdMatch = path.match(/^\/courses\/(\d+)$/);
@@ -270,6 +426,112 @@ Deno.serve(async (req) => {
       return json(req, progress);
     }
 
+    let m = path.match(/^\/lessons\/(\d+)\/comments$/);
+    if (m && method === 'GET') {
+      return json(req, db.comments
+        .filter((c: any) => c.lesson_id === Number(m![1]))
+        .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+        .map((c: any) => ({ ...c, user_name: db.users.find((u: any) => u.id === c.user_id)?.name || '?' })));
+    }
+    if (m && method === 'POST') {
+      const b = await body(req);
+      if (!String(b.message || '').trim()) throw new HttpError(400, 'comentário obrigatório');
+      const row = { id: nextId(db, 'comments'), lesson_id: Number(m![1]), user_id: Number(user.id), message: String(b.message).trim(), created_at: new Date().toISOString() };
+      db.comments.push(row);
+      await saveDB(db);
+      return json(req, row);
+    }
+
+    if (method === 'GET' && path === '/questions') {
+      const rows = db.questions
+        .filter((q: any) => user.is_admin || q.user_id === Number(user.id))
+        .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .map((q: any) => ({ ...q, user_name: db.users.find((u: any) => u.id === q.user_id)?.name || '?', lesson_title: db.lessons.find((l: any) => l.id === q.lesson_id)?.title || '' }));
+      return json(req, rows);
+    }
+    if (method === 'POST' && path === '/questions') {
+      const b = await body(req);
+      if (!String(b.message || '').trim()) throw new HttpError(400, 'pergunta obrigatória');
+      const row = {
+        id: nextId(db, 'questions'),
+        lesson_id: b.lesson_id ? Number(b.lesson_id) : null,
+        user_id: Number(user.id),
+        title: b.title || 'Pergunta',
+        message: String(b.message).trim(),
+        answer: '',
+        status: 'open',
+        created_at: new Date().toISOString()
+      };
+      db.questions.push(row);
+      await saveDB(db);
+      return json(req, row);
+    }
+
+    if (method === 'GET' && path === '/forum') {
+      return json(req, db.forum_posts
+        .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .map((p: any) => ({ ...p, user_name: db.users.find((u: any) => u.id === p.user_id)?.name || '?' })));
+    }
+    if (method === 'POST' && path === '/forum') {
+      const b = await body(req);
+      if (!String(b.message || '').trim()) throw new HttpError(400, 'mensagem obrigatória');
+      const row = { id: nextId(db, 'forum_posts'), user_id: Number(user.id), title: b.title || 'Post', message: String(b.message).trim(), created_at: new Date().toISOString() };
+      db.forum_posts.push(row);
+      await saveDB(db);
+      return json(req, row);
+    }
+
+    if (method === 'GET' && path === '/notifications') {
+      const rows = db.notifications
+        .filter((n: any) => n.user_id === Number(user.id))
+        .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      const incomplete = listCourses(db).filter((c: any) => user.is_admin || c.published).map((c: any) => progressForCourse(db, c, user.id)).some((p: any) => p.total_lessons && p.progress_percent < 100);
+      if (incomplete) rows.unshift({ id: 'reminder', title: 'Continue seu progresso', message: 'Há aulas pendentes esperando conclusão.', type: 'progress', read: false, created_at: new Date().toISOString() });
+      return json(req, rows);
+    }
+    m = path.match(/^\/notifications\/(\d+)\/read$/);
+    if (m && method === 'PUT') {
+      const row = db.notifications.find((n: any) => n.id === Number(m![1]) && n.user_id === Number(user.id));
+      if (row) row.read = true;
+      await saveDB(db);
+      return json(req, row || { ok: true });
+    }
+
+    if (method === 'POST' && path === '/quiz/attempts') {
+      const b = await body(req);
+      const module = db.modules.find((x: any) => x.id === Number(b.module_id));
+      if (!module) throw new HttpError(404, 'módulo não existe');
+      const quiz = parseQuiz(module);
+      if (!quiz.length) throw new HttpError(400, 'quiz vazio');
+      const answers = Array.isArray(b.answers) ? b.answers : [];
+      const score = quiz.reduce((sum: number, q: any, i: number) => sum + (Number(answers[i]) === Number(q.answer) ? 1 : 0), 0);
+      const percent = Math.round((score / quiz.length) * 100);
+      const passed = percent >= Number(module.min_score || 70);
+      const row = { id: nextId(db, 'quiz_attempts'), module_id: module.id, user_id: Number(user.id), score, total: quiz.length, percent, passed, answers, created_at: new Date().toISOString() };
+      db.quiz_attempts.push(row);
+      await saveDB(db);
+      return json(req, row);
+    }
+
+    if (method === 'GET' && path === '/certificates') {
+      return json(req, db.certificates.filter((c: any) => c.user_id === Number(user.id)).map((c: any) => ({ ...c, course_title: db.courses.find((x: any) => x.id === c.course_id)?.title || '' })));
+    }
+    if (method === 'POST' && path === '/certificates') {
+      const b = await body(req);
+      const course = db.courses.find((c: any) => c.id === Number(b.course_id));
+      if (!course) throw new HttpError(404, 'curso não existe');
+      const progress = progressForCourse(db, course, user.id);
+      if (!progress.total_lessons || progress.progress_percent < 100) throw new HttpError(400, 'curso incompleto');
+      let row = db.certificates.find((c: any) => c.course_id === course.id && c.user_id === Number(user.id));
+      if (!row) {
+        row = { id: nextId(db, 'certificates'), course_id: course.id, user_id: Number(user.id), code: '', created_at: new Date().toISOString() };
+        row.code = certificateCode(row);
+        db.certificates.push(row);
+        await saveDB(db);
+      }
+      return json(req, { ...row, course_title: course.title });
+    }
+
     if (method === 'POST' && path === '/suggestions') {
       const b = await body(req);
       if (!String(b.message || '').trim()) throw new HttpError(400, 'sugestão obrigatória');
@@ -303,6 +565,29 @@ Deno.serve(async (req) => {
       return json(req, db.settings);
     }
 
+    if (method === 'GET' && path === '/admin/progress') {
+      const rows = db.users.filter((u: any) => !u.is_admin).map((u: any) => ({
+        user: publicUser(u),
+        courses: listCourses(db).map((c: any) => ({ id: c.id, title: c.title, ...progressForCourse(db, c, u.id) })),
+        certificates: db.certificates.filter((c: any) => c.user_id === u.id).length
+      }));
+      return json(req, rows);
+    }
+
+    m = path.match(/^\/questions\/(\d+)$/);
+    if (m && method === 'PUT') {
+      const row = db.questions.find((q: any) => q.id === Number(m![1]));
+      if (!row) throw new HttpError(404, 'pergunta não existe');
+      const b = await body(req);
+      row.answer = b.answer || row.answer || '';
+      row.status = b.status || (row.answer ? 'answered' : row.status);
+      row.answered_by = Number(user.id);
+      row.answered_at = new Date().toISOString();
+      addNotification(db, { user_id: row.user_id, type: 'mentor', title: 'Resposta do mentor', message: row.title || row.message });
+      await saveDB(db);
+      return json(req, row);
+    }
+
     if (method === 'GET' && path === '/users') {
       return json(req, db.users.map(publicUser).sort((a: any, b: any) => a.name.localeCompare(b.name)));
     }
@@ -324,7 +609,7 @@ Deno.serve(async (req) => {
       return json(req, publicUser(row));
     }
 
-    let m = path.match(/^\/users\/(\d+)$/);
+    m = path.match(/^\/users\/(\d+)$/);
     if (m && method === 'PUT') {
       const row = db.users.find((u: any) => u.id === Number(m![1]));
       if (!row) throw new HttpError(404, 'usuário não existe');
@@ -350,8 +635,9 @@ Deno.serve(async (req) => {
 
     if (method === 'POST' && path === '/courses') {
       const b = await body(req);
-      const row = { id: nextId(db, 'courses'), title: b.title, description: b.description || '', cover_url: b.cover_url || '', published: b.published !== false, order: Number(b.order || db.courses.length + 1), created_at: new Date().toISOString() };
+      const row = { id: nextId(db, 'courses'), title: b.title, description: b.description || '', cover_url: b.cover_url || '', category: b.category || 'Geral', level: b.level || 'iniciante', workload: b.workload || '', access_mode: b.access_mode || 'sequential', published: b.published !== false, order: Number(b.order || db.courses.length + 1), created_at: new Date().toISOString() };
       db.courses.push(row);
+      addNotification(db, { type: 'content', title: 'Novo curso', message: row.title });
       await saveDB(db);
       return json(req, row);
     }
@@ -377,7 +663,7 @@ Deno.serve(async (req) => {
 
     if (method === 'POST' && path === '/modules') {
       const b = await body(req);
-      const row = { id: nextId(db, 'modules'), course_id: Number(b.course_id), title: b.title, description: b.description || '', cover_url: b.cover_url || '', order: Number(b.order || db.modules.length + 1), created_at: new Date().toISOString() };
+      const row = { id: nextId(db, 'modules'), course_id: Number(b.course_id), title: b.title, description: b.description || '', cover_url: b.cover_url || '', quiz_json: b.quiz_json || '', min_score: Number(b.min_score || 70), order: Number(b.order || db.modules.length + 1), created_at: new Date().toISOString() };
       db.modules.push(row);
       await saveDB(db);
       return json(req, row);
@@ -402,8 +688,9 @@ Deno.serve(async (req) => {
 
     if (method === 'POST' && path === '/lessons') {
       const b = await body(req);
-      const row = { id: nextId(db, 'lessons'), module_id: Number(b.module_id), title: b.title, summary: b.summary || '', video_url: b.video_url || '', material_url: b.material_url || '', duration: b.duration || '', order: Number(b.order || db.lessons.length + 1), created_at: new Date().toISOString() };
+      const row = { id: nextId(db, 'lessons'), module_id: Number(b.module_id), title: b.title, summary: b.summary || '', video_url: b.video_url || '', material_url: b.material_url || '', material_links: b.material_links || '', transcript: b.transcript || '', duration: b.duration || '', order: Number(b.order || db.lessons.length + 1), created_at: new Date().toISOString() };
       db.lessons.push(row);
+      addNotification(db, { type: 'content', title: 'Nova aula', message: row.title });
       await saveDB(db);
       return json(req, row);
     }

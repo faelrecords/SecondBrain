@@ -143,6 +143,31 @@ p, small { color: var(--muted); line-height: 1.55; }
   font-size: 13px;
   margin-bottom: 12px;
 }
+.success {
+  border: 1px solid rgba(var(--accent-rgb), .32);
+  background: rgba(var(--accent-rgb), .09);
+  color: var(--accent);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+.auth-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin: 0 0 18px;
+}
+.auth-tabs button {
+  min-height: 40px;
+  padding: 8px;
+  font-size: 13px;
+}
+.auth-tabs .active {
+  background: rgba(var(--accent-rgb), .18);
+  color: var(--accent);
+  border-color: var(--line-strong);
+}
 .app {
   min-height: 100vh;
   display: grid;
@@ -380,6 +405,32 @@ nav button:hover,
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 18px;
 }
+.catalog-filters {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) 220px 180px;
+  gap: 12px;
+}
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 13px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(0,0,0,.28);
+}
+.search-box input {
+  border: 0;
+  background: transparent;
+  padding-left: 0;
+}
+.card-meta {
+  display: inline-flex;
+  margin-bottom: 10px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 800;
+}
 .poster-card {
   aspect-ratio: 9 / 16;
   min-height: 420px;
@@ -393,6 +444,27 @@ nav button:hover,
   background: var(--panel);
   border-color: var(--line);
   box-shadow: 0 20px 70px rgba(0,0,0,.28);
+}
+.poster-card.locked {
+  opacity: .58;
+  filter: grayscale(.45);
+}
+.poster-card.locked:hover {
+  transform: none;
+}
+.lock-pill {
+  width: fit-content;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 10px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--accent);
+  background: rgba(0,0,0,.38);
+  font-size: 12px;
+  font-weight: 850;
 }
 .poster-card img {
   position: absolute;
@@ -444,6 +516,20 @@ nav button:hover,
   padding: 16px 26px;
   border-radius: 18px;
   font-size: 17px;
+}
+.progress-track {
+  width: 100%;
+  height: 7px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255,255,255,.06);
+}
+.progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
 }
 .course-list, .lesson-list, .player-panel, .admin-card, .table {
   background: var(--panel);
@@ -689,12 +775,167 @@ nav button:hover,
   border: 1px solid var(--line);
   border-radius: 18px;
   background: rgba(255,255,255,.035);
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 .material-box a {
   color: var(--accent);
   font-weight: 850;
   text-decoration: none;
 }
+.transcript-box,
+.quiz-box,
+.interaction-card,
+.certificate-box,
+.stat-card,
+.panel-section {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  box-shadow: 0 20px 70px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.05);
+}
+.transcript-box {
+  margin: 0 24px 20px;
+  padding: 16px;
+}
+.transcript-box summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 850;
+}
+.transcript-box p { margin-top: 12px; }
+.lesson-nav {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 0 24px 24px;
+}
+.interaction-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  padding: 0 24px 24px;
+}
+.interaction-card {
+  padding: 16px;
+  display: grid;
+  gap: 10px;
+}
+.interaction-card h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+}
+.thread-list {
+  display: grid;
+  gap: 8px;
+  max-height: 220px;
+  overflow: auto;
+}
+.thread-item {
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(0,0,0,.18);
+}
+.thread-item small {
+  display: block;
+  margin-top: 6px;
+  color: var(--accent);
+}
+.quiz-box {
+  margin: 0 24px 24px;
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+}
+.section-head.compact {
+  margin-bottom: 0;
+  align-items: center;
+}
+.quiz-question {
+  display: grid;
+  gap: 10px;
+}
+.quiz-options {
+  display: grid;
+  gap: 8px;
+}
+.quiz-options button.active {
+  color: #020403;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+}
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 22px;
+}
+.stat-card {
+  padding: 22px;
+}
+.stat-card strong {
+  display: block;
+  margin: 8px 0 12px;
+  font-size: 34px;
+}
+.panel-section {
+  padding: 20px;
+  margin-bottom: 18px;
+}
+.panel-section h2 { margin-bottom: 14px; }
+.mini-list {
+  display: grid;
+  gap: 10px;
+}
+.mini-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 14px;
+  align-items: center;
+}
+.mini-row .progress-track {
+  grid-column: 1 / -1;
+}
+.achievement-grid {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.achievement {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 13px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), .08);
+  font-weight: 800;
+}
+.achievement.muted { color: var(--muted); }
+.certificate-box,
+.notification {
+  padding: 18px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+.notification.read { opacity: .6; }
+.answer-box {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), .06);
+}
+.profile-card {
+  max-width: 760px;
+}
+.mt { margin-top: 16px; }
 .add-slide-btn {
   width: fit-content;
   margin-top: 12px;
@@ -870,6 +1111,16 @@ nav button:hover,
     align-items: stretch;
     gap: 12px;
   }
+  .catalog-filters,
+  .stats-grid,
+  .interaction-grid {
+    grid-template-columns: 1fr;
+  }
+  .certificate-box,
+  .notification {
+    flex-direction: column;
+    align-items: stretch;
+  }
   .topbar .primary,
   .section-head .primary,
   .continue-btn,
@@ -950,6 +1201,8 @@ nav button:hover,
   .rating-box,
   .suggest-box,
   .material-box,
+  .transcript-box,
+  .quiz-box,
   .summary {
     margin-left: 12px;
     margin-right: 12px;
@@ -957,7 +1210,9 @@ nav button:hover,
   .lesson-head,
   .rating-box,
   .suggest-box,
-  .material-box {
+  .material-box,
+  .transcript-box,
+  .quiz-box {
     padding: 16px;
   }
   .summary {
@@ -1009,6 +1264,16 @@ nav button:hover,
     min-height: 62px;
     font-size: 17px;
     font-weight: 900;
+  }
+  .lesson-nav {
+    margin: 0 12px 18px;
+  }
+  .interaction-grid {
+    padding: 0 12px 18px;
+  }
+  .panel-section,
+  .stat-card {
+    padding: 18px;
   }
   .modal {
     padding: 18px;

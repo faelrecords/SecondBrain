@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BookOpen, GraduationCap, Image, LayoutDashboard, Lightbulb, LogOut, Menu, Play, Plus, Save, Star, Trash2, Users } from 'lucide-react';
+import { Award, BarChart3, Bell, BookOpen, CheckCircle, ChevronLeft, ChevronRight, Download, GraduationCap, HelpCircle, Image, LayoutDashboard, Lightbulb, Lock, LogOut, Menu, MessageCircle, Play, Plus, Save, Search, Star, Trash2, User, Users } from 'lucide-react';
 import './styles.css';
 
 const API = import.meta.env.VITE_API_URL || (
@@ -13,6 +13,7 @@ function token() { return localStorage.getItem('token'); }
 function profile() { try { return JSON.parse(localStorage.getItem('profile') || 'null'); } catch { return null; } }
 function setSession(data) { localStorage.setItem('token', data.token); localStorage.setItem('profile', JSON.stringify(data.user)); }
 function logout() { localStorage.clear(); location.reload(); }
+function saveProfile(user) { localStorage.setItem('profile', JSON.stringify(user)); }
 
 async function request(path, opts = {}) {
   const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
@@ -38,26 +39,51 @@ function embedUrl(url) {
 }
 
 function Login({ onLogin }) {
-  const [form, setForm] = useState({ identifier: '', password: '' });
+  const [mode, setMode] = useState('login');
+  const [form, setForm] = useState({ identifier: '', name: '', email: '', password: '' });
   const [err, setErr] = useState('');
+  const [ok, setOk] = useState('');
   async function submit(e) {
-    e.preventDefault(); setErr('');
+    e.preventDefault(); setErr(''); setOk('');
     try {
-      const data = await api.post('/auth/login', form);
-      setSession(data); onLogin();
+      if (mode === 'login') {
+        const data = await api.post('/auth/login', form);
+        setSession(data); onLogin();
+      } else if (mode === 'register') {
+        const data = await api.post('/auth/register', form);
+        setSession(data); onLogin();
+      } else {
+        await api.post('/auth/recover', form);
+        setOk('Senha atualizada.');
+        setMode('login');
+      }
     } catch (e) { setErr(e.message); }
   }
   return <main className="auth-page">
     <form className="auth-card" onSubmit={submit}>
       <div className="brand-lock"><GraduationCap size={30} /><span>SecondBrain</span></div>
-      <h1>Acesso interno</h1>
+      <h1>{mode === 'login' ? 'Acesso interno' : mode === 'register' ? 'Criar conta' : 'Recuperar senha'}</h1>
       <p>Plataforma de cursos da empresa.</p>
+      <div className="auth-tabs">
+        <button type="button" className={mode === 'login' ? 'active' : ''} onClick={() => setMode('login')}>Login</button>
+        <button type="button" className={mode === 'register' ? 'active' : ''} onClick={() => setMode('register')}>Cadastro</button>
+        <button type="button" className={mode === 'recover' ? 'active' : ''} onClick={() => setMode('recover')}>Senha</button>
+      </div>
       {err && <div className="error">{err}</div>}
-      <label>Usuário ou email</label>
-      <input autoFocus value={form.identifier} onChange={e => setForm({ ...form, identifier: e.target.value })} />
+      {ok && <div className="success">{ok}</div>}
+      {mode === 'register' && <>
+        <label>Nome</label>
+        <input autoFocus value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+        <label>Email</label>
+        <input value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
+      </>}
+      {mode !== 'register' && <>
+        <label>Usuário ou email</label>
+        <input autoFocus value={form.identifier} onChange={e => setForm({ ...form, identifier: e.target.value })} />
+      </>}
       <label>Senha</label>
       <input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} />
-      <button className="primary">Entrar</button>
+      <button className="primary">{mode === 'login' ? 'Entrar' : mode === 'register' ? 'Cadastrar' : 'Atualizar senha'}</button>
     </form>
   </main>;
 }
@@ -65,8 +91,8 @@ function Login({ onLogin }) {
 function Shell({ children, tab, setTab, user }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const nav = user?.is_admin
-    ? [['learn', BookOpen, 'Aulas'], ['admin', LayoutDashboard, 'Cursos'], ['users', Users, 'Usuários'], ['feedback', Star, 'Avaliações'], ['suggestions', Lightbulb, 'Sugestões'], ['settings', Image, 'Configurações']]
-    : [['learn', BookOpen, 'Aulas'], ['my-suggestions', Lightbulb, 'Sugestões']];
+    ? [['dashboard', BarChart3, 'Dashboard'], ['learn', BookOpen, 'Catálogo'], ['admin', LayoutDashboard, 'Cursos'], ['users', Users, 'Usuários'], ['admin-progress', Award, 'Progresso'], ['admin-questions', HelpCircle, 'Perguntas'], ['feedback', Star, 'Avaliações'], ['suggestions', Lightbulb, 'Sugestões'], ['notifications', Bell, 'Notificações'], ['settings', Image, 'Configurações'], ['profile', User, 'Perfil']]
+    : [['dashboard', BarChart3, 'Dashboard'], ['learn', BookOpen, 'Catálogo'], ['community', MessageCircle, 'Comunidade'], ['notifications', Bell, 'Notificações'], ['profile', User, 'Perfil'], ['my-suggestions', Lightbulb, 'Sugestões']];
   return <div className="app">
     <aside>
       <div className="mobile-head">
@@ -90,9 +116,47 @@ function Stars({ value, onChange }) {
   )}</div>;
 }
 
+function ProgressBar({ value }) {
+  return <div className="progress-track"><span style={{ width: `${Math.min(100, Math.max(0, value || 0))}%` }} /></div>;
+}
+
+function Dashboard({ courses, user }) {
+  const [data, setData] = useState(null);
+  useEffect(() => { api.get('/dashboard').then(setData).catch(() => {}); }, []);
+  const total = courses.reduce((sum, c) => sum + (c.total_lessons || 0), 0);
+  const watched = courses.reduce((sum, c) => sum + (c.watched_lessons || 0), 0);
+  const progress = data?.progress_percent ?? (total ? Math.round((watched / total) * 100) : 0);
+  const active = data?.in_progress || courses.filter(c => c.watched_lessons > 0 && c.watched_lessons < c.total_lessons);
+  const certificates = data?.certificates || [];
+  return <div>
+    <header className="topbar"><div><h1>Dashboard</h1></div></header>
+    <div className="stats-grid">
+      <div className="stat-card"><small>Progresso geral</small><strong>{progress}%</strong><ProgressBar value={progress} /></div>
+      <div className="stat-card"><small>Aulas concluídas</small><strong>{data?.watched_lessons ?? watched}/{data?.total_lessons ?? total}</strong></div>
+      <div className="stat-card"><small>Certificados</small><strong>{certificates.length}</strong></div>
+    </div>
+    <section className="panel-section">
+      <h2>Cursos em andamento</h2>
+      <div className="mini-list">{active.map(c => <div className="mini-row" key={c.id}><span>{c.title}</span><b>{c.progress_percent || 0}%</b><ProgressBar value={c.progress_percent || 0} /></div>)}
+        {!active.length && <Empty title="Sem cursos em andamento" text="Comece um curso pelo catálogo." />}</div>
+    </section>
+    <section className="panel-section">
+      <h2>Conquistas</h2>
+      <div className="achievement-grid">
+        {(data?.achievements || []).map(a => <span key={a} className="achievement"><Award size={18} />{a}</span>)}
+        {certificates.map(c => <span key={c.code} className="achievement"><CheckCircle size={18} />{c.course_title || c.code}</span>)}
+        {!certificates.length && !(data?.achievements || []).length && <span className="achievement muted"><Award size={18} />Nenhuma conquista ainda</span>}
+      </div>
+    </section>
+  </div>;
+}
+
 function Learn({ courses, reload }) {
   const [settings, setSettings] = useState({ slides: [] });
   const [slide, setSlide] = useState(0);
+  const [search, setSearch] = useState('');
+  const [category, setCategory] = useState('');
+  const [level, setLevel] = useState('');
   const [courseId, setCourseId] = useState(null);
   const course = courses.find(c => c.id === courseId);
   const lessons = course?.modules.flatMap(m => m.lessons.map(l => ({ ...l, module_title: m.title }))) || [];
@@ -116,6 +180,19 @@ function Learn({ courses, reload }) {
     setRatingDraft(lesson?.my_rating || 0);
     setReviewText(lesson?.my_comment || '');
   }, [lesson?.id]);
+  const categories = [...new Set(courses.map(c => c.category || 'Geral'))];
+  const levels = [...new Set(courses.map(c => c.level || 'iniciante'))];
+  const filteredCourses = courses.filter(c =>
+    (!search || `${c.title} ${c.description}`.toLowerCase().includes(search.toLowerCase())) &&
+    (!category || (c.category || 'Geral') === category) &&
+    (!level || (c.level || 'iniciante') === level)
+  );
+  const moduleIndex = course?.modules.findIndex(m => m.id === moduleId) ?? -1;
+  const moduleComplete = m => (m?.lessons || []).length && m.lessons.every(l => l.watched);
+  const modulePassed = m => !m?.quiz_count || m.my_quiz_best?.passed;
+  const isModuleLocked = index => course?.access_mode !== 'free' && index > 0 && !course.modules.slice(0, index).every(m => moduleComplete(m) && modulePassed(m));
+  const lessonIndex = moduleLessons.findIndex(l => l.id === lesson?.id);
+  const isLessonLocked = index => course?.access_mode !== 'free' && index > 0 && !moduleLessons[index - 1]?.watched;
   function continueWhereStopped(targetCourse = courses[0]) {
     const flat = targetCourse?.modules.flatMap(m => m.lessons.map(l => ({ ...l, module_id: m.id }))) || [];
     const target = flat.find(l => !l.watched) || flat.at(-1);
@@ -138,20 +215,26 @@ function Learn({ courses, reload }) {
       <button className="primary continue-btn" onClick={() => continueWhereStopped(courses[0])}><Play size={17} />Continuar de onde parou</button>
     </div>
     <header className="section-head"><div><h2>Cursos disponíveis</h2></div></header>
+    <div className="catalog-filters">
+      <div className="search-box"><Search size={18} /><input placeholder="Buscar curso" value={search} onChange={e => setSearch(e.target.value)} /></div>
+      <select value={category} onChange={e => setCategory(e.target.value)}><option value="">Todas categorias</option>{categories.map(c => <option key={c} value={c}>{c}</option>)}</select>
+      <select value={level} onChange={e => setLevel(e.target.value)}><option value="">Todos níveis</option>{levels.map(l => <option key={l} value={l}>{l}</option>)}</select>
+    </div>
     <div className="poster-grid">
-      {courses.map(c => <button key={c.id} className="poster-card" onClick={() => setCourseId(c.id)}>
+      {filteredCourses.map(c => <button key={c.id} className="poster-card" onClick={() => setCourseId(c.id)}>
         <img src={c.cover_url || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=80'} />
-        <div><h3>{c.title}</h3><p>{c.description}</p><small>{c.modules.length} módulos</small></div>
+        <div><span className="card-meta">{c.category || 'Geral'} · {c.level || 'iniciante'} · {c.workload || 'sem carga'}</span><h3>{c.title}</h3><p>{c.description}</p><ProgressBar value={c.progress_percent || 0} /><small>{c.modules.length} módulos</small></div>
       </button>)}
     </div>
   </div>;
   if (!module) return <div className="learn-page">
     <button className="back-btn" onClick={() => setCourseId(null)}>Voltar</button>
     <header className="section-head"><div><h2>{course.title}</h2></div><button className="primary slim" onClick={() => continueWhereStopped(course)}><Play size={16} />Continuar de onde parou</button></header>
+    {course.progress_percent === 100 && <CertificatePanel course={course} />}
     <div className="poster-grid">
-      {course.modules.map(m => <button key={m.id} className="poster-card" onClick={() => setModuleId(m.id)}>
+      {course.modules.map((m, i) => <button key={m.id} disabled={isModuleLocked(i)} className={isModuleLocked(i) ? 'poster-card locked' : 'poster-card'} onClick={() => !isModuleLocked(i) && setModuleId(m.id)}>
         <img src={m.cover_url || course.cover_url || 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=900&q=80'} />
-        <div><h3>{m.title}</h3><p>{m.description}</p><small>{m.lessons.length} aulas</small></div>
+        <div>{isModuleLocked(i) && <span className="lock-pill"><Lock size={14} />Travado</span>}<h3>{m.title}</h3><p>{m.description}</p><ProgressBar value={m.lessons.length ? Math.round((m.lessons.filter(l => l.watched).length / m.lessons.length) * 100) : 0} /><small>{m.lessons.length} aulas · quiz {m.quiz_count ? `${m.min_score}%` : 'livre'}</small></div>
       </button>)}
     </div>
   </div>;
@@ -167,7 +250,11 @@ function Learn({ courses, reload }) {
             <span>{lesson.duration}</span>
           </div>
           <p className="summary">{lesson.summary || 'Sem resumo.'}</p>
-          {lesson.material_url && <div className="material-box"><a href={lesson.material_url} target="_blank" rel="noreferrer">Material complementar</a></div>}
+          {(lesson.material_url || lesson.material_links) && <div className="material-box">
+            {lesson.material_url && <a href={lesson.material_url} target="_blank" rel="noreferrer">Material complementar</a>}
+            {String(lesson.material_links || '').split('\n').filter(Boolean).map((l, i) => <a key={i} href={l} target="_blank" rel="noreferrer">Link {i + 1}</a>)}
+          </div>}
+          {lesson.transcript && <details className="transcript-box"><summary>Transcrição / legenda</summary><p>{lesson.transcript}</p></details>}
           <div className="rating-box">
             <div><b>Avaliar aula</b><small>{lesson.rating_count ? `${lesson.rating_avg.toFixed(1)} média / ${lesson.rating_count} votos` : 'sem avaliações'}</small></div>
             <Stars value={ratingDraft} onChange={setRatingDraft} />
@@ -178,13 +265,19 @@ function Learn({ courses, reload }) {
               {lesson.watched ? 'Aula assistida' : 'Marcar como assistido'}
             </button>
           </div>
+          <div className="lesson-nav">
+            <button disabled={lessonIndex <= 0} onClick={() => setLessonId(moduleLessons[lessonIndex - 1]?.id)}><ChevronLeft size={17} />Anterior</button>
+            <button disabled={!moduleLessons[lessonIndex + 1] || isLessonLocked(lessonIndex + 1)} onClick={() => setLessonId(moduleLessons[lessonIndex + 1]?.id)}>Próxima<ChevronRight size={17} /></button>
+          </div>
+          <LessonInteraction lesson={lesson} />
+          <ModuleQuiz module={module} reload={reload} />
         </> : <Empty title="Curso vazio" text="Sem aulas cadastradas." />}
       </div>
       <div className="lesson-list">
         <div className="module">
           <h3>Aulas</h3>
-          {moduleLessons.map(l => <button key={l.id} className={lesson?.id === l.id ? 'lesson active' : 'lesson'} onClick={() => setLessonId(l.id)}>
-            <Play size={15} /><span>{l.title}</span><small>{l.watched ? 'feito' : l.duration}</small>
+          {moduleLessons.map((l, i) => <button key={l.id} disabled={isLessonLocked(i)} className={`${lesson?.id === l.id ? 'lesson active' : 'lesson'} ${isLessonLocked(i) ? 'locked' : ''}`} onClick={() => !isLessonLocked(i) && setLessonId(l.id)}>
+            {isLessonLocked(i) ? <Lock size={15} /> : <Play size={15} />}<span>{l.title}</span><small>{l.watched ? 'feito' : l.duration}</small>
           </button>)}
         </div>
       </div>
@@ -201,6 +294,215 @@ function HeroSlider({ slides, slide, setSlide }) {
   </section>;
 }
 
+function LessonInteraction({ lesson }) {
+  const [comments, setComments] = useState([]);
+  const [questions, setQuestions] = useState([]);
+  const [comment, setComment] = useState('');
+  const [question, setQuestion] = useState({ title: '', message: '' });
+  async function load() {
+    if (!lesson?.id) return;
+    const [c, q] = await Promise.all([
+      api.get(`/lessons/${lesson.id}/comments`),
+      api.get('/questions')
+    ]);
+    setComments(c);
+    setQuestions(q.filter(x => x.lesson_id === lesson.id));
+  }
+  useEffect(() => { load().catch(() => {}); }, [lesson?.id]);
+  async function sendComment() {
+    await api.post(`/lessons/${lesson.id}/comments`, { message: comment });
+    setComment('');
+    load();
+  }
+  async function sendQuestion() {
+    await api.post('/questions', { lesson_id: lesson.id, ...question });
+    setQuestion({ title: '', message: '' });
+    load();
+  }
+  return <div className="interaction-grid">
+    <section className="interaction-card">
+      <h3><MessageCircle size={17} />Comentários</h3>
+      <div className="thread-list">{comments.map(c => <div key={c.id} className="thread-item"><b>{c.user_name}</b><p>{c.message}</p></div>)}</div>
+      <textarea placeholder="Comentar aula..." value={comment} onChange={e => setComment(e.target.value)} />
+      <button className="primary" disabled={!comment.trim()} onClick={sendComment}>Enviar comentário</button>
+    </section>
+    <section className="interaction-card">
+      <h3><HelpCircle size={17} />Perguntas ao mentor</h3>
+      <div className="thread-list">{questions.map(q => <div key={q.id} className="thread-item"><b>{q.title}</b><p>{q.message}</p>{q.answer && <small>Resposta: {q.answer}</small>}</div>)}</div>
+      <input placeholder="Título" value={question.title} onChange={e => setQuestion({ ...question, title: e.target.value })} />
+      <textarea placeholder="Pergunta..." value={question.message} onChange={e => setQuestion({ ...question, message: e.target.value })} />
+      <button className="primary" disabled={!question.message.trim()} onClick={sendQuestion}>Enviar pergunta</button>
+    </section>
+  </div>;
+}
+
+function ModuleQuiz({ module, reload }) {
+  const questions = (() => { try { const q = JSON.parse(module.quiz_json || '[]'); return Array.isArray(q) ? q : []; } catch { return []; } })();
+  const [answers, setAnswers] = useState([]);
+  const [result, setResult] = useState(null);
+  if (!questions.length) return null;
+  const ready = (module.lessons || []).every(l => l.watched);
+  async function submit() {
+    const row = await api.post('/quiz/attempts', { module_id: module.id, answers });
+    setResult(row);
+    reload();
+  }
+  return <section className="quiz-box">
+    <div className="section-head compact"><div><h2>Quiz do módulo</h2><p>Nota mínima {module.min_score || 70}%</p></div>{module.my_quiz_best && <span className="status-pill">{module.my_quiz_best.percent}%</span>}</div>
+    {!ready && <div className="error">Conclua todas aulas do módulo para liberar quiz.</div>}
+    {questions.map((q, i) => <div className="quiz-question" key={i}>
+      <b>{i + 1}. {q.question}</b>
+      <div className="quiz-options">{(q.options || []).map((op, idx) => <button key={idx} className={answers[i] === idx ? 'active' : ''} onClick={() => setAnswers(a => { const next = [...a]; next[i] = idx; return next; })}>{op}</button>)}</div>
+    </div>)}
+    {result && <div className={result.passed ? 'success' : 'error'}>{result.percent}% · {result.passed ? 'aprovado' : 'reprovado'}</div>}
+    <button className="primary" disabled={!ready || questions.some((_, i) => answers[i] === undefined)} onClick={submit}>Enviar quiz</button>
+  </section>;
+}
+
+function escapePdf(text) {
+  return String(text || '').replace(/[\\()]/g, '\\$&').replace(/[^\x20-\x7E]/g, '');
+}
+
+function downloadPdf(lines, filename) {
+  const body = lines.map((line, i) => `BT /F1 ${i ? 16 : 30} Tf 72 ${730 - i * 34} Td (${escapePdf(line)}) Tj ET`).join('\n');
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 842 595] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>',
+    `<< /Length ${body.length} >>\nstream\n${body}\nendstream`
+  ];
+  let pdf = '%PDF-1.4\n';
+  const offsets = [0];
+  objects.forEach((obj, i) => { offsets.push(pdf.length); pdf += `${i + 1} 0 obj\n${obj}\nendobj\n`; });
+  const xref = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n${offsets.slice(1).map(o => `${String(o).padStart(10, '0')} 00000 n `).join('\n')}\ntrailer << /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([pdf], { type: 'application/pdf' }));
+  a.download = filename;
+  a.click();
+}
+
+function CertificatePanel({ course }) {
+  const [cert, setCert] = useState(null);
+  const user = profile();
+  async function issue() {
+    const row = await api.post('/certificates', { course_id: course.id });
+    setCert(row);
+  }
+  const link = cert ? `${location.origin}${location.pathname}?cert=${cert.code}` : '';
+  return <section className="certificate-box">
+    <div><h2>Certificado disponível</h2>{cert && <p>Link verificável: {link}</p>}</div>
+    <button className="primary" onClick={issue}><Award size={16} />Gerar certificado</button>
+    {cert && <button onClick={() => downloadPdf(['Certificado SecondBrain', user?.name || 'Aluno', course.title, `Código: ${cert.code}`, link], `certificado-${cert.code}.pdf`)}><Download size={16} />Download PDF</button>}
+  </section>;
+}
+
+function ProfilePage({ onUpdate }) {
+  const [form, setForm] = useState(profile() || {});
+  async function save() {
+    const user = await api.put('/me', form);
+    saveProfile(user);
+    onUpdate(user);
+  }
+  return <div>
+    <header className="topbar"><div><h1>Perfil</h1></div><button className="primary slim" onClick={save}><Save size={16} />Salvar</button></header>
+    <div className="admin-card profile-card">
+      <ImageField label="Foto do aluno" value={form.avatar_url} onChange={v => setForm({ ...form, avatar_url: v })} />
+      <Field label="Nome" value={form.name} onChange={v => setForm({ ...form, name: v })} />
+      <Field label="Email" value={form.email} onChange={v => setForm({ ...form, email: v })} />
+      <Area label="Bio" value={form.bio} onChange={v => setForm({ ...form, bio: v })} />
+      <Field label="Nova senha" type="password" value={form.password || ''} onChange={v => setForm({ ...form, password: v })} />
+    </div>
+  </div>;
+}
+
+function NotificationsPage() {
+  const [items, setItems] = useState([]);
+  async function load() { setItems(await api.get('/notifications')); }
+  useEffect(() => { load(); }, []);
+  async function mark(n) {
+    if (Number.isFinite(Number(n.id))) await api.put(`/notifications/${n.id}/read`, {});
+    load();
+  }
+  return <div>
+    <header className="topbar"><div><h1>Notificações</h1></div></header>
+    <div className="admin-stack">{items.map(n => <div className={`admin-card notification ${n.read ? 'read' : ''}`} key={n.id}>
+      <div><small>{n.type}</small><h2>{n.title}</h2><p>{n.message}</p></div>
+      {!n.read && <button onClick={() => mark(n)}>Marcar lida</button>}
+    </div>)}</div>
+  </div>;
+}
+
+function CommunityPage() {
+  const [items, setItems] = useState([]);
+  const [form, setForm] = useState({ title: '', message: '' });
+  async function load() { setItems(await api.get('/forum')); }
+  useEffect(() => { load(); }, []);
+  async function send() {
+    await api.post('/forum', form);
+    setForm({ title: '', message: '' });
+    load();
+  }
+  return <div>
+    <header className="topbar"><div><h1>Comunidade</h1></div></header>
+    <div className="admin-card">
+      <Field label="Título" value={form.title} onChange={v => setForm({ ...form, title: v })} />
+      <Area label="Publicação" value={form.message} onChange={v => setForm({ ...form, message: v })} />
+      <button className="primary" disabled={!form.message.trim()} onClick={send}>Publicar</button>
+    </div>
+    <div className="admin-stack mt">{items.map(p => <div className="admin-card" key={p.id}><small>{p.user_name}</small><h2>{p.title}</h2><p>{p.message}</p></div>)}</div>
+  </div>;
+}
+
+function AdminProgress() {
+  const [rows, setRows] = useState([]);
+  useEffect(() => { api.get('/admin/progress').then(setRows); }, []);
+  return <div>
+    <header className="topbar"><div><h1>Progresso dos alunos</h1></div></header>
+    <div className="admin-stack">{rows.map(r => <div className="admin-card" key={r.user.id}>
+      <h2>{r.user.name}</h2><p>{r.user.email}</p>
+      <div className="mini-list">{r.courses.map(c => <div className="mini-row" key={c.id}><span>{c.title}</span><b>{c.progress_percent}%</b><ProgressBar value={c.progress_percent} /></div>)}</div>
+      <span className="status-pill">{r.certificates} certificados</span>
+    </div>)}</div>
+  </div>;
+}
+
+function AdminQuestions() {
+  const [items, setItems] = useState([]);
+  const [answers, setAnswers] = useState({});
+  async function load() { setItems(await api.get('/questions')); }
+  useEffect(() => { load(); }, []);
+  async function answer(q) {
+    await api.put(`/questions/${q.id}`, { answer: answers[q.id] || q.answer, status: 'answered' });
+    setAnswers({});
+    load();
+  }
+  return <div>
+    <header className="topbar"><div><h1>Perguntas</h1></div></header>
+    <div className="admin-stack">{items.map(q => <div className="admin-card" key={q.id}>
+      <small>{q.user_name} · {q.lesson_title || 'geral'} · {q.status}</small>
+      <h2>{q.title}</h2><p>{q.message}</p>
+      {q.answer && <div className="answer-box">Resposta atual: {q.answer}</div>}
+      <textarea placeholder="Responder mentor..." value={answers[q.id] || ''} onChange={e => setAnswers({ ...answers, [q.id]: e.target.value })} />
+      <button className="primary" disabled={!answers[q.id]?.trim()} onClick={() => answer(q)}>Responder</button>
+    </div>)}</div>
+  </div>;
+}
+
+function VerifyCertificate() {
+  const code = new URLSearchParams(location.search).get('cert');
+  const [cert, setCert] = useState(null);
+  const [err, setErr] = useState('');
+  useEffect(() => { api.get(`/certificates/verify/${code}`).then(setCert).catch(e => setErr(e.message)); }, [code]);
+  return <main className="auth-page"><section className="auth-card">
+    <div className="brand-lock"><GraduationCap size={30} /><span>SecondBrain</span></div>
+    <h1>Certificado</h1>
+    {err && <div className="error">{err}</div>}
+    {cert && <><p>Certificado válido.</p><h2>{cert.user_name}</h2><p>{cert.course_title}</p><span className="status-pill">{cert.code}</span></>}
+  </section></main>;
+}
+
 function Empty({ title, text }) {
   return <div className="empty"><h2>{title}</h2><p>{text}</p></div>;
 }
@@ -208,7 +510,7 @@ function Empty({ title, text }) {
 function AdminCourses({ courses, reload }) {
   const [editing, setEditing] = useState(null);
   const [type, setType] = useState('course');
-  const empty = { title: '', description: '', cover_url: '', published: true, course_id: '', module_id: '', summary: '', video_url: '', duration: '', order: 1 };
+  const empty = { title: '', description: '', cover_url: '', published: true, category: 'Geral', level: 'iniciante', workload: '', access_mode: 'sequential', course_id: '', module_id: '', summary: '', video_url: '', material_url: '', material_links: '', transcript: '', duration: '', quiz_json: '', min_score: 70, order: 1 };
   const [form, setForm] = useState(empty);
   function open(kind, data = {}) { setType(kind); setEditing(data.id || 'new'); setForm({ ...empty, ...data }); }
   async function save() {
@@ -238,11 +540,23 @@ function AdminCourses({ courses, reload }) {
       {type === 'lesson' && <Select label="Módulo" value={form.module_id} onChange={v => setForm({ ...form, module_id: v })} options={courses.flatMap(c => c.modules.map(m => [m.id, `${c.title} / ${m.title}`]))} />}
       <Field label="Título" value={form.title} onChange={v => setForm({ ...form, title: v })} />
       {(type === 'course' || type === 'module') && <ImageField label="Capa vertical 1080x1920" value={form.cover_url} onChange={v => setForm({ ...form, cover_url: v })} />}
+      {type === 'course' && <>
+        <Field label="Categoria" value={form.category} onChange={v => setForm({ ...form, category: v })} />
+        <Select label="Nível" value={form.level} onChange={v => setForm({ ...form, level: v })} options={[['iniciante', 'iniciante'], ['intermediário', 'intermediário'], ['avançado', 'avançado']]} />
+        <Field label="Carga horária" value={form.workload} onChange={v => setForm({ ...form, workload: v })} />
+        <Select label="Liberação das aulas" value={form.access_mode} onChange={v => setForm({ ...form, access_mode: v })} options={[['sequential', 'sequencial'], ['free', 'livre']]} />
+      </>}
       {type !== 'lesson' && <Area label="Descrição" value={form.description} onChange={v => setForm({ ...form, description: v })} />}
+      {type === 'module' && <>
+        <Field label="Nota mínima do quiz (%)" type="number" value={form.min_score} onChange={v => setForm({ ...form, min_score: Number(v) })} />
+        <Area label="Quiz JSON" value={form.quiz_json} onChange={v => setForm({ ...form, quiz_json: v })} />
+      </>}
       {type === 'lesson' && <>
         <Field label="Duração" value={form.duration} onChange={v => setForm({ ...form, duration: v })} />
         <Field label="Youtube ou Google Drive" value={form.video_url} onChange={v => setForm({ ...form, video_url: v })} />
         <ImageField label="Material complementar (PDF/imagem/link)" value={form.material_url} onChange={v => setForm({ ...form, material_url: v })} accept="image/*,.pdf" />
+        <Area label="Links de apoio (um por linha)" value={form.material_links} onChange={v => setForm({ ...form, material_links: v })} />
+        <Area label="Transcrição / legenda" value={form.transcript} onChange={v => setForm({ ...form, transcript: v })} />
         <Area label="Resumo" value={form.summary} onChange={v => setForm({ ...form, summary: v })} />
       </>}
       <Field label="Ordem" type="number" value={form.order} onChange={v => setForm({ ...form, order: Number(v) })} />
@@ -431,16 +745,23 @@ function Modal({ title, children, onClose, onSave }) {
 
 function App() {
   const [user, setUser] = useState(profile());
-  const [tab, setTab] = useState('learn');
+  const [tab, setTab] = useState('dashboard');
   const [courses, setCourses] = useState([]);
   async function load() { if (token()) setCourses(await api.get('/courses')); }
   useEffect(() => { load().catch(logout); }, [user]);
+  if (new URLSearchParams(location.search).get('cert')) return <VerifyCertificate />;
   if (!user) return <Login onLogin={() => setUser(profile())} />;
   return <Shell tab={tab} setTab={setTab} user={user}>
+    {tab === 'dashboard' && <Dashboard courses={courses} user={user} />}
     {tab === 'learn' && <Learn courses={courses} reload={load} />}
+    {tab === 'community' && <CommunityPage />}
+    {tab === 'notifications' && <NotificationsPage />}
+    {tab === 'profile' && <ProfilePage onUpdate={setUser} />}
     {tab === 'my-suggestions' && <UserSuggestions />}
     {tab === 'admin' && <AdminCourses courses={courses} reload={load} />}
     {tab === 'users' && <UsersAdmin />}
+    {tab === 'admin-progress' && <AdminProgress />}
+    {tab === 'admin-questions' && <AdminQuestions />}
     {tab === 'feedback' && <FeedbackAdmin />}
     {tab === 'suggestions' && <SuggestionsAdmin />}
     {tab === 'settings' && <SettingsAdmin />}
