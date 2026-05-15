@@ -219,6 +219,7 @@ nav button:hover,
 .admin-card::after,
 .poster-card::before {
   content: "";
+  display: none;
   position: absolute;
   inset: 0;
   pointer-events: none;
@@ -435,10 +436,14 @@ nav button:hover,
 .continue-row {
   display: flex;
   justify-content: center;
-  margin-top: -10px;
+  margin-top: -4px;
 }
 .continue-btn {
-  min-width: 260px;
+  min-width: 360px;
+  min-height: 58px;
+  padding: 16px 26px;
+  border-radius: 18px;
+  font-size: 17px;
 }
 .course-list, .lesson-list, .player-panel, .admin-card, .table {
   background: var(--panel);
@@ -834,9 +839,11 @@ nav button:hover,
   .main { padding: 14px; }
 }
 @media (max-width: 760px) {
-  body { background-size: 64px 64px, 64px 64px, auto, auto, auto; }
-  h1 { font-size: clamp(32px, 12vw, 52px); }
-  h2 { font-size: 22px; }
+  body { background-size: 72px 72px, 72px 72px, auto, auto, auto; }
+  h1 { font-size: 34px; }
+  h2 { font-size: 25px; }
+  h3 { font-size: 18px; }
+  p, small { font-size: 15px; }
   html, body, #root { width: 100%; overflow-x: hidden; }
   button,
   input,
@@ -845,8 +852,8 @@ nav button:hover,
     font-size: 16px;
   }
   button {
-    min-height: 50px;
-    padding: 12px 16px;
+    min-height: 54px;
+    padding: 14px 17px;
   }
   .brand {
     font-size: 24px;
@@ -869,10 +876,29 @@ nav button:hover,
   .back-btn {
     width: 100%;
   }
+  .main {
+    padding: 12px 10px 72px;
+  }
+  .learn-page {
+    gap: 24px;
+  }
+  .continue-row {
+    margin-top: 0;
+    padding: 0;
+  }
+  .continue-btn {
+    width: 100%;
+    min-height: 66px;
+    max-width: none;
+    border-radius: 20px;
+    font-size: 18px;
+    font-weight: 900;
+  }
   .hero-slider {
     border-radius: 22px;
     width: 100%;
     margin: 0;
+    min-height: 190px;
   }
   .mentor-hero { min-height: auto; border-radius: 24px; }
   .hero-copy p { font-size: 14px; }
@@ -882,38 +908,43 @@ nav button:hover,
     display: flex;
     overflow-x: auto;
     scroll-snap-type: x mandatory;
-    gap: 12px;
-    padding: 2px 0 12px;
-    margin-right: -12px;
+    gap: 14px;
+    padding: 2px 10px 16px;
+    margin-left: -10px;
+    margin-right: -10px;
   }
   .poster-card {
-    flex: 0 0 calc(100vw - 54px);
+    flex: 0 0 calc(100vw - 42px);
     width: auto;
     min-height: auto;
     margin: 0;
     scroll-snap-align: start;
-    border-radius: 18px;
+    border-radius: 22px;
   }
   .poster-card > div {
-    padding: 14px;
+    padding: 22px;
   }
   .poster-card h3 {
-    font-size: 24px;
+    font-size: 27px;
+    line-height: 1.08;
   }
   .poster-card p {
     display: -webkit-box;
-    font-size: 15px;
+    font-size: 16px;
   }
-  .poster-card small { font-size: 14px; }
+  .poster-card small { font-size: 15px; }
+  .learn-grid {
+    gap: 16px;
+  }
   .player-panel,
   .lesson-list,
   .admin-card,
   .table {
-    border-radius: 18px;
+    border-radius: 20px;
     width: 100%;
   }
   .player-panel iframe {
-    min-height: 210px;
+    min-height: 230px;
   }
   .lesson-head,
   .rating-box,
@@ -922,28 +953,62 @@ nav button:hover,
   .summary {
     margin-left: 12px;
     margin-right: 12px;
-    padding-left: 0;
-    padding-right: 0;
+  }
+  .lesson-head,
+  .rating-box,
+  .suggest-box,
+  .material-box {
+    padding: 16px;
+  }
+  .summary {
+    padding: 0 16px 18px;
   }
   .lesson-head {
     flex-direction: column;
+    margin-top: 12px;
+    margin-bottom: 12px;
   }
   .lesson-head h2 {
-    font-size: 26px;
+    font-size: 29px;
+    line-height: 1.08;
   }
   .lesson {
-    min-height: 54px;
-    font-size: 15px;
+    min-height: 64px;
+    font-size: 16px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
   }
   .lesson small {
     font-size: 13px;
   }
   .rating-box b {
-    font-size: 17px;
+    font-size: 19px;
+  }
+  .rating-box {
+    align-items: stretch;
+    gap: 16px;
+  }
+  .stars {
+    width: 100%;
+    justify-content: space-between;
   }
   .stars button {
-    min-width: 44px;
-    min-height: 44px;
+    flex: 1;
+    min-width: 0;
+    min-height: 56px;
+  }
+  .stars svg {
+    width: 24px;
+    height: 24px;
+  }
+  .suggest-box textarea {
+    min-height: 132px;
+    font-size: 16px;
+  }
+  .suggest-box .primary {
+    width: 100%;
+    min-height: 62px;
+    font-size: 17px;
+    font-weight: 900;
   }
   .modal {
     padding: 18px;
@@ -970,7 +1035,13 @@ nav button:hover,
 }
 @media (max-width: 430px) {
   .poster-card {
-    flex-basis: calc(100vw - 44px);
+    flex-basis: calc(100vw - 36px);
   }
-  .hero-slider { aspect-ratio: 16 / 10; }
+  .hero-slider {
+    aspect-ratio: 16 / 10;
+    min-height: 210px;
+  }
+  .player-panel iframe {
+    min-height: 240px;
+  }
 }
