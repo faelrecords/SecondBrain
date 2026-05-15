@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BookOpen, GraduationCap, Image, LayoutDashboard, Lightbulb, LogOut, Play, Plus, Save, Star, Trash2, Users } from 'lucide-react';
+import { BookOpen, GraduationCap, Image, LayoutDashboard, Lightbulb, LogOut, Menu, Play, Plus, Save, Star, Trash2, Users } from 'lucide-react';
 import './styles.css';
 
 const API = import.meta.env.VITE_API_URL || (
@@ -63,14 +63,18 @@ function Login({ onLogin }) {
 }
 
 function Shell({ children, tab, setTab, user }) {
+  const [menuOpen, setMenuOpen] = useState(false);
   const nav = user?.is_admin
     ? [['learn', BookOpen, 'Aulas'], ['admin', LayoutDashboard, 'Cursos'], ['users', Users, 'Usuários'], ['feedback', Star, 'Avaliações'], ['suggestions', Lightbulb, 'Sugestões'], ['settings', Image, 'Configurações']]
     : [['learn', BookOpen, 'Aulas'], ['my-suggestions', Lightbulb, 'Sugestões']];
   return <div className="app">
     <aside>
-      <div className="brand"><GraduationCap /><span>SecondBrain</span></div>
-      <nav>{nav.map(([id, Icon, label]) =>
-        <button key={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}><Icon size={18} />{label}</button>
+      <div className="mobile-head">
+        <div className="brand"><GraduationCap /><span>SecondBrain</span></div>
+        <button className="mobile-menu-btn" onClick={() => setMenuOpen(v => !v)}><Menu size={20} /></button>
+      </div>
+      <nav className={menuOpen ? 'open' : ''}>{nav.map(([id, Icon, label]) =>
+        <button key={id} className={tab === id ? 'active' : ''} onClick={() => { setTab(id); setMenuOpen(false); }}><Icon size={18} />{label}</button>
       )}</nav>
       <div className="side-bottom">
         <button className="logout" onClick={logout}><LogOut size={18} />Sair</button>
@@ -163,6 +167,7 @@ function Learn({ courses, reload }) {
             <span>{lesson.duration}</span>
           </div>
           <p className="summary">{lesson.summary || 'Sem resumo.'}</p>
+          {lesson.material_url && <div className="material-box"><a href={lesson.material_url} target="_blank" rel="noreferrer">Material complementar</a></div>}
           <div className="rating-box">
             <div><b>Avaliar aula</b><small>{lesson.rating_count ? `${lesson.rating_avg.toFixed(1)} média / ${lesson.rating_count} votos` : 'sem avaliações'}</small></div>
             <Stars value={ratingDraft} onChange={setRatingDraft} />
@@ -237,6 +242,7 @@ function AdminCourses({ courses, reload }) {
       {type === 'lesson' && <>
         <Field label="Duração" value={form.duration} onChange={v => setForm({ ...form, duration: v })} />
         <Field label="Youtube ou Google Drive" value={form.video_url} onChange={v => setForm({ ...form, video_url: v })} />
+        <ImageField label="Material complementar (PDF/imagem/link)" value={form.material_url} onChange={v => setForm({ ...form, material_url: v })} accept="image/*,.pdf" />
         <Area label="Resumo" value={form.summary} onChange={v => setForm({ ...form, summary: v })} />
       </>}
       <Field label="Ordem" type="number" value={form.order} onChange={v => setForm({ ...form, order: Number(v) })} />
@@ -371,6 +377,12 @@ function Select({ label, value, onChange, options }) {
   return <><label>{label}</label><select value={value || ''} onChange={e => onChange(e.target.value)}><option value="">Selecione</option>{options.map(([v, t]) => <option key={v} value={v}>{t}</option>)}</select></>;
 }
 function fileToDataUrl(file, cb) {
+  if (file.type === 'application/pdf') {
+    const reader = new FileReader();
+    reader.onload = () => cb(reader.result);
+    reader.readAsDataURL(file);
+    return;
+  }
   if (!file.type.startsWith('image/')) return;
   const img = document.createElement('img');
   const reader = new FileReader();
@@ -389,7 +401,7 @@ function fileToDataUrl(file, cb) {
   };
   reader.readAsDataURL(file);
 }
-function ImageField({ label, value, onChange }) {
+function ImageField({ label, value, onChange, accept = 'image/*' }) {
   const [loading, setLoading] = useState(false);
   function handleFile(file) {
     if (!file) return;
@@ -404,11 +416,13 @@ function ImageField({ label, value, onChange }) {
     <label className="file-picker">
       <Image size={17} />
       <span>{loading ? 'Processando...' : 'Selecionar imagem'}</span>
-      <input type="file" accept="image/*" onChange={e => handleFile(e.target.files?.[0])} />
+      <input type="file" accept={accept} onChange={e => handleFile(e.target.files?.[0])} />
     </label>
     {loading && <div className="upload-progress"><span /></div>}
     <input placeholder="ou cole URL da imagem" value={value || ''} onChange={e => onChange(e.target.value)} />
-    {value && <img src={value} />}
+    {value && (String(value).startsWith('data:application/pdf') || String(value).toLowerCase().endsWith('.pdf')
+      ? <a className="material-link" href={value} target="_blank" rel="noreferrer">Abrir material</a>
+      : <img src={value} />)}
   </div>;
 }
 function Modal({ title, children, onClose, onSave }) {

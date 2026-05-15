@@ -159,6 +159,7 @@ export const db = {
       title: input.title,
       summary: input.summary || '',
       video_url: input.video_url || '',
+      material_url: input.material_url || '',
       duration: input.duration || '',
       order: Number(input.order || data.lessons.length + 1),
       created_at: new Date().toISOString()

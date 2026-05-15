@@ -105,6 +105,7 @@ async function loadDB() {
       title: 'Como usar plataforma',
       summary: 'Visão geral da rotina, ordem das aulas, avaliação e envio de sugestões.',
       video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      material_url: '',
       duration: '08 min',
       order: 1,
       created_at: new Date().toISOString()
@@ -401,7 +402,7 @@ Deno.serve(async (req) => {
 
     if (method === 'POST' && path === '/lessons') {
       const b = await body(req);
-      const row = { id: nextId(db, 'lessons'), module_id: Number(b.module_id), title: b.title, summary: b.summary || '', video_url: b.video_url || '', duration: b.duration || '', order: Number(b.order || db.lessons.length + 1), created_at: new Date().toISOString() };
+      const row = { id: nextId(db, 'lessons'), module_id: Number(b.module_id), title: b.title, summary: b.summary || '', video_url: b.video_url || '', material_url: b.material_url || '', duration: b.duration || '', order: Number(b.order || db.lessons.length + 1), created_at: new Date().toISOString() };
       db.lessons.push(row);
       await saveDB(db);
       return json(req, row);

@@ -159,6 +159,8 @@ aside {
   z-index: 4;
 }
 .brand { padding: 4px 8px 30px; font-size: 21px; }
+.mobile-head { display: contents; }
+.mobile-menu-btn { display: none; }
 nav { display: grid; gap: 8px; }
 nav button, .logout {
   width: 100%;
@@ -662,6 +664,31 @@ nav button:hover,
   border-radius: 14px;
   border: 1px solid var(--line);
 }
+.material-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  padding: 12px 15px;
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), .08);
+  text-decoration: none;
+  font-weight: 800;
+}
+.material-box {
+  margin: 0 24px 20px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255,255,255,.035);
+}
+.material-box a {
+  color: var(--accent);
+  font-weight: 850;
+  text-decoration: none;
+}
 .add-slide-btn {
   width: fit-content;
   margin-top: 12px;
@@ -770,17 +797,35 @@ nav button:hover,
 @media (max-width: 920px) {
   .app { grid-template-columns: 1fr; }
   aside {
-    position: static;
+    position: sticky;
+    top: 0;
     height: auto;
-    padding: 14px;
+    padding: 10px 12px;
+    z-index: 30;
   }
-  .brand { padding-bottom: 14px; }
-  nav { display: flex; overflow-x: auto; padding-bottom: 4px; }
-  nav button { justify-content: center; }
-  .side-bottom {
-    position: static;
-    margin-top: 10px;
+  .mobile-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .mobile-menu-btn {
+    display: inline-flex;
+    width: 48px;
+    height: 48px;
+    padding: 0;
+  }
+  .brand { padding: 0; }
+  nav {
+    display: none;
     grid-template-columns: 1fr;
+    gap: 8px;
+    padding-top: 12px;
+  }
+  nav.open { display: grid; }
+  nav button { justify-content: flex-start; width: 100%; }
+  .side-bottom {
+    display: none;
   }
   .main { padding: 14px; }
 }
@@ -822,19 +867,27 @@ nav button:hover,
   }
   .hero-slider {
     border-radius: 22px;
+    width: 100%;
+    margin: 0;
   }
   .mentor-hero { min-height: auto; border-radius: 24px; }
   .hero-copy p { font-size: 14px; }
   .topbar, .section-head, .admin-row, .rating-box, .suggestion { flex-direction: column; }
   .lesson-admin, .table-row { grid-template-columns: 1fr; }
   .poster-grid {
-    grid-template-columns: 1fr;
-    gap: 16px;
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    gap: 12px;
+    padding: 2px 0 12px;
+    margin-right: -12px;
   }
   .poster-card {
-    width: min(100%, 390px);
+    flex: 0 0 calc(100vw - 54px);
+    width: auto;
     min-height: auto;
-    margin: 0 auto;
+    margin: 0;
+    scroll-snap-align: start;
     border-radius: 18px;
   }
   .poster-card > div {
@@ -853,13 +906,18 @@ nav button:hover,
   .admin-card,
   .table {
     border-radius: 18px;
+    width: 100%;
+  }
+  .player-panel iframe {
+    min-height: 210px;
   }
   .lesson-head,
   .rating-box,
   .suggest-box,
+  .material-box,
   .summary {
-    margin-left: 14px;
-    margin-right: 14px;
+    margin-left: 12px;
+    margin-right: 12px;
     padding-left: 0;
     padding-right: 0;
   }
@@ -899,12 +957,16 @@ nav button:hover,
   .slides-admin {
     grid-template-columns: 1fr;
   }
+  .file-picker,
+  .material-link,
+  .add-slide-btn {
+    width: 100%;
+    justify-content: center;
+  }
 }
 @media (max-width: 430px) {
-  .poster-grid { grid-template-columns: 1fr; }
   .poster-card {
-    width: 100%;
-    min-height: auto;
+    flex-basis: calc(100vw - 44px);
   }
   .hero-slider { aspect-ratio: 16 / 10; }
 }
