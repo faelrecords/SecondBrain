@@ -634,6 +634,26 @@ nav button:hover,
 .file-picker:hover {
   background: rgba(var(--accent-rgb), .14);
 }
+.upload-progress {
+  width: min(260px, 100%);
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255,255,255,.08);
+  border: 1px solid var(--line);
+}
+.upload-progress span {
+  display: block;
+  width: 45%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  animation: progressMove 1s ease-in-out infinite;
+}
+@keyframes progressMove {
+  0% { transform: translateX(-110%); }
+  100% { transform: translateX(240%); }
+}
 .image-field img {
   width: 100%;
   max-height: 220px;
@@ -746,7 +766,7 @@ nav button:hover,
   .mentor-hero { grid-template-columns: 1fr; }
   .hero-orbit { min-height: 280px; }
 }
-@media (max-width: 760px) {
+@media (max-width: 920px) {
   .app { grid-template-columns: 1fr; }
   aside {
     position: static;
@@ -754,12 +774,96 @@ nav button:hover,
     padding: 14px;
   }
   .brand { padding-bottom: 14px; }
-  nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  nav {
+    grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+  }
   nav button { justify-content: center; }
-  .side-bottom { position: static; margin-top: 10px; grid-template-columns: 1fr; }
+  .side-bottom {
+    position: static;
+    margin-top: 10px;
+    grid-template-columns: 1fr;
+  }
   .main { padding: 14px; }
+}
+@media (max-width: 760px) {
+  body { background-size: 64px 64px, 64px 64px, auto, auto, auto; }
+  h1 { font-size: clamp(32px, 12vw, 52px); }
+  h2 { font-size: 22px; }
+  .topbar,
+  .section-head {
+    align-items: stretch;
+    gap: 12px;
+  }
+  .topbar .primary,
+  .section-head .primary,
+  .continue-btn,
+  .back-btn {
+    width: 100%;
+  }
+  .hero-slider {
+    border-radius: 22px;
+  }
   .mentor-hero { min-height: auto; border-radius: 24px; }
   .hero-copy p { font-size: 14px; }
   .topbar, .section-head, .admin-row, .rating-box, .suggestion { flex-direction: column; }
   .lesson-admin, .table-row { grid-template-columns: 1fr; }
+  .poster-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .poster-card {
+    min-height: 310px;
+    border-radius: 18px;
+  }
+  .poster-card > div {
+    padding: 14px;
+  }
+  .poster-card h3 {
+    font-size: 16px;
+  }
+  .poster-card p {
+    display: none;
+  }
+  .player-panel,
+  .lesson-list,
+  .admin-card,
+  .table {
+    border-radius: 18px;
+  }
+  .lesson-head,
+  .rating-box,
+  .suggest-box,
+  .summary {
+    margin-left: 14px;
+    margin-right: 14px;
+    padding-left: 0;
+    padding-right: 0;
+  }
+  .lesson-head {
+    flex-direction: column;
+  }
+  .lesson-head h2 {
+    font-size: 22px;
+  }
+  .modal {
+    padding: 18px;
+    border-radius: 18px;
+  }
+  .actions,
+  .modal-actions {
+    flex-direction: column;
+  }
+  .actions button,
+  .modal-actions button,
+  .suggestion-controls {
+    width: 100%;
+  }
+  .slides-admin {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 430px) {
+  nav { grid-template-columns: 1fr; }
+  .poster-grid { grid-template-columns: 1fr; }
+  .poster-card { min-height: 380px; }
 }

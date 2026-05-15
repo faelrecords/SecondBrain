@@ -380,18 +380,42 @@ function Select({ label, value, onChange, options }) {
   return <><label>{label}</label><select value={value || ''} onChange={e => onChange(e.target.value)}><option value="">Selecione</option>{options.map(([v, t]) => <option key={v} value={v}>{t}</option>)}</select></>;
 }
 function fileToDataUrl(file, cb) {
+  if (!file.type.startsWith('image/')) return;
+  const img = document.createElement('img');
   const reader = new FileReader();
-  reader.onload = () => cb(reader.result);
+  reader.onload = () => {
+    img.onload = () => {
+      const max = 1600;
+      const scale = Math.min(1, max / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      cb(canvas.toDataURL('image/jpeg', 0.82));
+    };
+    img.src = reader.result;
+  };
   reader.readAsDataURL(file);
 }
 function ImageField({ label, value, onChange }) {
+  const [loading, setLoading] = useState(false);
+  function handleFile(file) {
+    if (!file) return;
+    setLoading(true);
+    fileToDataUrl(file, url => {
+      onChange(url);
+      setLoading(false);
+    });
+  }
   return <div className="image-field">
     <label>{label}</label>
     <label className="file-picker">
       <Image size={17} />
-      <span>Selecionar imagem</span>
-      <input type="file" accept="image/*" onChange={e => e.target.files?.[0] && fileToDataUrl(e.target.files[0], onChange)} />
+      <span>{loading ? 'Processando...' : 'Selecionar imagem'}</span>
+      <input type="file" accept="image/*" onChange={e => handleFile(e.target.files?.[0])} />
     </label>
+    {loading && <div className="upload-progress"><span /></div>}
     <input placeholder="ou cole URL da imagem" value={value || ''} onChange={e => onChange(e.target.value)} />
     {value && <img src={value} />}
   </div>;
