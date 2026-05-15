@@ -75,7 +75,7 @@ function Shell({ children, tab, setTab, user }) {
       </div>
       <nav className={menuOpen ? 'open' : ''}>{nav.map(([id, Icon, label]) =>
         <button key={id} className={tab === id ? 'active' : ''} onClick={() => { setTab(id); setMenuOpen(false); }}><Icon size={18} />{label}</button>
-      )}</nav>
+      )}<button className="logout nav-logout" onClick={logout}><LogOut size={18} />Sair</button></nav>
       <div className="side-bottom">
         <button className="logout" onClick={logout}><LogOut size={18} />Sair</button>
       </div>

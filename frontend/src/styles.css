@@ -161,6 +161,7 @@ aside {
 .brand { padding: 4px 8px 30px; font-size: 21px; }
 .mobile-head { display: contents; }
 .mobile-menu-btn { display: none; }
+.nav-logout { display: none; }
 nav { display: grid; gap: 8px; }
 nav button, .logout {
   width: 100%;
@@ -794,7 +795,7 @@ nav button:hover,
   .mentor-hero { grid-template-columns: 1fr; }
   .hero-orbit { min-height: 280px; }
 }
-@media (max-width: 920px) {
+@media (max-width: 1800px) {
   .app { grid-template-columns: 1fr; }
   aside {
     position: sticky;
@@ -827,6 +828,9 @@ nav button:hover,
   .side-bottom {
     display: none;
   }
+  .nav-logout { display: flex; }
+}
+@media (max-width: 920px) {
   .main { padding: 14px; }
 }
 @media (max-width: 760px) {
