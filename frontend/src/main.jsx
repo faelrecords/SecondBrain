@@ -97,7 +97,6 @@ function Learn({ courses, reload }) {
   const moduleLessons = module?.lessons || [];
   const [lessonId, setLessonId] = useState(null);
   const lesson = lessons.find(l => l.id === lessonId) || lessons[0];
-  const [suggest, setSuggest] = useState('');
   const [ratingDraft, setRatingDraft] = useState(0);
   const [reviewText, setReviewText] = useState('');
   useEffect(() => { api.get('/settings').then(setSettings).catch(() => {}); }, []);
@@ -127,10 +126,6 @@ function Learn({ courses, reload }) {
     const idx = moduleLessons.findIndex(l => l.id === lesson.id);
     const next = moduleLessons[idx + 1];
     if (next) setLessonId(next.id);
-  }
-  async function sendSuggestion() {
-    await api.post('/suggestions', { lesson_id: lesson?.id, title: 'Sugestão de aula', message: suggest });
-    setSuggest('');
   }
   if (!courses.length) return <Empty title="Nenhum curso" text="Admin precisa criar cursos." />;
   if (!course) return <div className="learn-page">
@@ -177,10 +172,6 @@ function Learn({ courses, reload }) {
             <button className="primary" disabled={!ratingDraft || lesson.watched} onClick={markWatched}>
               {lesson.watched ? 'Aula assistida' : 'Marcar como assistido'}
             </button>
-          </div>
-          <div className="suggest-box">
-            <textarea placeholder="Sugerir nova aula, ajuste ou material..." value={suggest} onChange={e => setSuggest(e.target.value)} />
-            <button disabled={!suggest.trim()} onClick={sendSuggestion}><Lightbulb size={16} />Enviar sugestão</button>
           </div>
         </> : <Empty title="Curso vazio" text="Sem aulas cadastradas." />}
       </div>
