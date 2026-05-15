@@ -377,6 +377,7 @@ nav button:hover,
   gap: 18px;
 }
 .poster-card {
+  aspect-ratio: 9 / 16;
   min-height: 420px;
   position: relative;
   overflow: hidden;
@@ -789,6 +790,22 @@ nav button:hover,
   body { background-size: 64px 64px, 64px 64px, auto, auto, auto; }
   h1 { font-size: clamp(32px, 12vw, 52px); }
   h2 { font-size: 22px; }
+  button,
+  input,
+  textarea,
+  select {
+    font-size: 15px;
+  }
+  button {
+    min-height: 46px;
+  }
+  .brand {
+    font-size: 23px;
+  }
+  nav button {
+    min-height: 48px;
+    font-size: 15px;
+  }
   .topbar,
   .section-head {
     align-items: stretch;
@@ -808,22 +825,26 @@ nav button:hover,
   .topbar, .section-head, .admin-row, .rating-box, .suggestion { flex-direction: column; }
   .lesson-admin, .table-row { grid-template-columns: 1fr; }
   .poster-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
+    grid-template-columns: 1fr;
+    gap: 16px;
   }
   .poster-card {
-    min-height: 310px;
+    width: min(100%, 360px);
+    min-height: auto;
+    margin: 0 auto;
     border-radius: 18px;
   }
   .poster-card > div {
     padding: 14px;
   }
   .poster-card h3 {
-    font-size: 16px;
+    font-size: 22px;
   }
   .poster-card p {
-    display: none;
+    display: -webkit-box;
+    font-size: 14px;
   }
+  .poster-card small { font-size: 13px; }
   .player-panel,
   .lesson-list,
   .admin-card,
@@ -843,7 +864,7 @@ nav button:hover,
     flex-direction: column;
   }
   .lesson-head h2 {
-    font-size: 22px;
+    font-size: 24px;
   }
   .modal {
     padding: 18px;
@@ -865,5 +886,9 @@ nav button:hover,
 @media (max-width: 430px) {
   nav { grid-template-columns: 1fr; }
   .poster-grid { grid-template-columns: 1fr; }
-  .poster-card { min-height: 380px; }
+  .poster-card {
+    width: 100%;
+    min-height: auto;
+  }
+  .hero-slider { aspect-ratio: 16 / 10; }
 }
